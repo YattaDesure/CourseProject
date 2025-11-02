@@ -5,12 +5,19 @@
                 "authProtocol": "default",
                 "enableSsl": "Disabled"
             },
-            "ssh": "Disabled",
+            "ssh": "Enabled",
             "previewLimit": 50,
+            "sshOptions": {
+                "port": 1433,
+                "host": "192.168.0.113",
+                "username": "Eduardo",
+                "password": "22332123Yaz"
+            },
             "server": "localhost",
             "driver": "MySQL",
-            "connectString": "Server=DESKTOP-KI5IT5Q;1433;Database=Cursovaya;User=Eduardo;Password=22332123Yaz;",
-            "name": "Cursach"
+            "connectString": "Server=192.168.0.113,1433;Database=Cursovaya;User Id=Eduardo;Password=22332123Yaz;Encrypt=false;TrustServerCertificate=true;",
+            "name": "Cursach",
+            "connectionTimeout": 40
         }
     ]
 }
