@@ -1,9 +1,9 @@
 @startuml 123
 left to right direction
 
-actor "Председатель ТСЖ" as Chairman
-actor "Бухгалтер/Модератор" as Accountant
-actor "Сотрудник ТСЖ" as Employee
+actor "Администратор" as Chairman
+actor "Модератор" as Accountant
+actor "Собственник" as Employee
 
 usecase "Управление пользователями" as UC_ManageUsers
 usecase "Просмотр всех данных" as UC_ViewAll
