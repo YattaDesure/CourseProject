@@ -15,8 +15,6 @@ package "Базовые возможности" {
 }
 
 package "Просмотр данных" {
-  usecase "Просмотр списка домов" as UC_ViewHouses
-  usecase "Просмотр информации о доме" as UC_ViewHouseInfo
   usecase "Просмотр списка помещений" as UC_ViewProperties
   usecase "Просмотр деталей помещения" as UC_ViewPropertyDetails
   usecase "Просмотр списка собственников" as UC_ViewOwners
@@ -24,9 +22,7 @@ package "Просмотр данных" {
 }
 
 package "Управление недвижимостью" {
-  usecase "Добавление нового дома" as UC_AddHouse
-  usecase "Редактирование данных дома" as UC_EditHouse
-  usecase "Архивация дома" as UC_ArchiveHouse
+  usecase "Редактирование данных" as UC_EditHouse
   usecase "Добавление помещения" as UC_AddProperty
   usecase "Редактирование помещения" as UC_EditProperty
   usecase "Архивация помещения" as UC_ArchiveProperty
@@ -56,8 +52,8 @@ package "Администрирование системы" {
 }
 
 ' Связи наследования
-Admin -up-|> Manager
-Manager -up-|> User
+Admin -up-|> Manager : наследование 
+Manager -up-|> User : наследование
 
 ' Базовые возможности для всех
 User --> UC_Auth
@@ -65,17 +61,15 @@ User --> UC_ViewProfile
 User --> UC_ChangePassword
 
 ' Возможности Пользователя
-User --> UC_ViewHouses
-User --> UC_ViewHouseInfo
 User --> UC_ViewProperties
-User --> UC_ViewPropertyDetails
+'User --> UC_ViewPropertyDetails
 User --> UC_ViewOwners
-User --> UC_ViewOwnerDetails
+'User --> UC_ViewOwnerDetails
 
 ' Возможности Менеджера
-Manager --> UC_AddHouse
+'Manager --> UC_AddHouse
 Manager --> UC_EditHouse
-Manager --> UC_ArchiveHouse
+'Manager --> UC_ArchiveHouse
 Manager --> UC_AddProperty
 Manager --> UC_EditProperty
 Manager --> UC_ArchiveProperty
@@ -97,7 +91,6 @@ Admin --> UC_Backup
 Admin --> UC_Restore
 
 ' Связи расширения
-UC_ViewHouses .> UC_ViewHouseInfo : extends
 UC_ViewProperties .> UC_ViewPropertyDetails : extends
 UC_ViewOwners .> UC_ViewOwnerDetails : extends
 UC_AddProperty .> UC_LinkProperty : extends
