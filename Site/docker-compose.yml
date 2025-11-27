@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: greenquarter-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${SQLSERVER__SA_PASSWORD:-22332123Yaz}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+      - ./infrastructure/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${SQLSERVER__SA_PASSWORD:-22332123Yaz}", "-Q", "SELECT 1"]
+      interval: 15s
+      retries: 10
+      start_period: 40s
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: greenquarter-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__DefaultConnection: ${DB__CONNECTION_STRING:-Server=sqlserver,1433;Database=GreenQuarter;User Id=sa;Password=22332123Yaz;TrustServerCertificate=True;}
+      JWT__Issuer: ${JWT__ISSUER:-http://localhost:5000}
+      JWT__Audience: ${JWT__AUDIENCE:-greenquarter-clients}
+      JWT__Key: ${JWT__KEY:-local-dev-secret-key-change-me}
+      Admin__Email: ${ADMIN__EMAIL:-admin@greenquarter.test}
+      Admin__Password: ${ADMIN__PASSWORD:-22332123Yaz}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "5000:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: greenquarter-frontend
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:5000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+
+  adminer:
+    image: adminer:4
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - sqlserver
+
+volumes:
+  mssql-data:
+

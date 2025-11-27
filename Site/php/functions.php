@@ -1,60 +1,131 @@
 <?php
 function connect_db() {
-    $config = include 'config.php';
-    $conn = new mysqli($config['host'], $config['username'], $config['password'], $config['dbname']);
-    if ($conn->connect_error) {
-        die("Connection failed: " . $conn->connect_error);
+    static $pdo = null;
+    if ($pdo !== null) {
+        return $pdo;
     }
-    return $conn;
+
+    $config = include __DIR__ . '/config.php';
+    $host = $config['host'];
+    $port = $config['port'] ?? 1433;
+    $db = $config['dbname'];
+    $user = $config['username'];
+    $pass = $config['password'];
+
+    $trustCert = isset($config['trust_server_certificate']) && $config['trust_server_certificate'] === true;
+    $encrypt = $config['encrypt'] ?? true;
+
+    $dsn = "sqlsrv:Server={$host},{$port};Database={$db};Encrypt=" . ($encrypt ? 'yes' : 'no') . ";TrustServerCertificate=" . ($trustCert ? 'yes' : 'no');
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        ]);
+    } catch (PDOException $e) {
+        error_log('DB connection failed: ' . $e->getMessage());
+        throw $e;
+    }
+
+    return $pdo;
 }
 
 function login($email, $password) {
-    $conn = connect_db();
-    $stmt = $conn->prepare("SELECT ResidentId FROM Residents WHERE Email = ? AND Password = ?");
-    $stmt->bind_param("ss", $email, $password);
-    $stmt->execute();
-    $stmt->bind_result($residentId);
-    $stmt->fetch();
-    $stmt->close();
+    $pdo = connect_db();
+    $stmt = $pdo->prepare("SELECT ResidentId FROM Residents WHERE Email = :email AND Password = :password");
+    $stmt->execute([
+        ':email' => $email,
+        ':password' => $password,
+    ]);
+    return $stmt->fetchColumn() ?: null;
+}
 
-    return $residentId;
+function fetch_resident_names(array $residentIds): array {
+    if (empty($residentIds)) {
+        return [];
+    }
+
+    $pdo = connect_db();
+    $uniqueIds = array_values(array_unique(array_filter($residentIds, 'is_numeric')));
+    if (empty($uniqueIds)) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
+    $sql = "
+        SELECT 
+            ResidentId,
+            CASE 
+                WHEN LTRIM(RTRIM(CONCAT(
+                    ISNULL(FirstName, ''), ' ',
+                    ISNULL(LastName, ''), ' ',
+                    ISNULL(Patronymic, '')
+                ))) <> '' THEN LTRIM(RTRIM(CONCAT(
+                    ISNULL(FirstName, ''), ' ',
+                    ISNULL(LastName, ''), ' ',
+                    ISNULL(Patronymic, '')
+                )))
+                WHEN Email IS NOT NULL THEN Email
+                ELSE CONCAT('ID ', ResidentId)
+            END AS ResidentName
+        FROM Residents
+        WHERE ResidentId IN ($placeholders)
+    ";
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($uniqueIds);
+
+    $names = [];
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $id = (int)$row['ResidentId'];
+        $names[$id] = $row['ResidentName'] ?: ('ID ' . $id);
+    }
+
+    return $names;
+}
+
+function attach_resident_names(array $rows): array {
+    $ids = [];
+    foreach ($rows as $row) {
+        if (isset($row['ResidentId'])) {
+            $ids[] = (int)$row['ResidentId'];
+        }
+    }
+
+    if (empty($ids)) {
+        return $rows;
+    }
+
+    $names = fetch_resident_names($ids);
+
+    foreach ($rows as &$row) {
+        $residentId = isset($row['ResidentId']) ? (int)$row['ResidentId'] : null;
+        if ($residentId !== null && isset($names[$residentId])) {
+            $row['ResidentName'] = $names[$residentId];
+        }
+    }
+    unset($row);
+
+    return $rows;
 }
 
 function get_parking_rooms() {
-    $conn = connect_db();
-    $stmt = $conn->prepare("SELECT * FROM ParkingRooms");
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $parkingRooms = [];
-    while ($row = $result->fetch_assoc()) {
-        $parkingRooms[] = $row;
-    }
-    $stmt->close();
-    return $parkingRooms;
+    $pdo = connect_db();
+    $stmt = $pdo->query("SELECT * FROM ParkingRooms");
+    $rows = $stmt->fetchAll();
+    return attach_resident_names($rows);
 }
 
 function get_storage_rooms() {
-    $conn = connect_db();
-    $stmt = $conn->prepare("SELECT * FROM StorageRooms");
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $storageRooms = [];
-    while ($row = $result->fetch_assoc()) {
-        $storageRooms[] = $row;
-    }
-    $stmt->close();
-    return $storageRooms;
+    $pdo = connect_db();
+    $stmt = $pdo->query("SELECT * FROM StorageRooms");
+    $rows = $stmt->fetchAll();
+    return attach_resident_names($rows);
 }
 
 function get_apartments() {
-    $conn = connect_db();
-    $stmt = $conn->prepare("SELECT * FROM Apartments");
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $apartments = [];
-    while ($row = $result->fetch_assoc()) {
-        $apartments[] = $row;
-    }
-    $stmt->close();
-    return $apartments;
+    $pdo = connect_db();
+    $stmt = $pdo->query("SELECT * FROM Apartments");
+    $rows = $stmt->fetchAll();
+    return attach_resident_names($rows);
 }
