@@ -1,99 +1,75 @@
 <?php
+// НИКАКОГО ВЫВОДА ДО ЗАГОЛОВКОВ!
 session_start();
+include 'functions.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
+// Определяем метод запроса без предупреждений
+$requestMethod = 'GET';
+if (isset($_SERVER['REQUEST_METHOD'])) {
+    $requestMethod = $_SERVER['REQUEST_METHOD'];
+}
+
+if ($requestMethod === 'POST') {
+    $email = '';
+    $password = '';
     
-    // Простая проверка (в реальном приложении нужно хеширование паролей)
-    if ($username === 'SA' && $password === 'admin123') {
-        $_SESSION['user'] = [
-            'id' => 1,
-            'username' => 'admin',
-            'full_name' => 'Иванов А.С.',
-            'role' => 'admin'
-        ];
-        header('Location: index.php');
-        exit();
-    } elseif ($username === 'manager' && $password === 'manager123') {
-        $_SESSION['user'] = [
-            'id' => 2,
-            'username' => 'manager',
-            'full_name' => 'Петрова М.И.',
-            'role' => 'manager'
-        ];
-        header('Location: index.php');
-        exit();
-    } elseif ($username === 'user' && $password === 'user123') {
-        $_SESSION['user'] = [
-            'id' => 3,
-            'username' => 'user',
-            'full_name' => 'Сидоров В.П.',
-            'role' => 'user'
-        ];
-        header('Location: index.php');
-        exit();
-    } else {
-        $error = "Неверное имя пользователя или пароль";
+    if (isset($_POST['Email'])) $email = $_POST['Email'];
+    if (isset($_POST['Password'])) $password = $_POST['Password'];
+    
+    if (!empty($email) && !empty($password)) {
+        $residentId = login($email, $password);
+        
+        if ($residentId) {
+            $_SESSION['residentId'] = $residentId;
+            header('Location: dashboard.php');
+            exit;
+        }
     }
+    
+    // Если дошли сюда - ошибка
+    showLoginForm("Неверный email или пароль.");
+} else {
+    showLoginForm();
+}
+
+function showLoginForm($error = '') {
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Вход в систему</title>
+        <style>
+            .error { color: red; padding: 10px; background: #ffe6e6; border: 1px solid red; }
+            .login-form { max-width: 300px; margin: 50px auto; padding: 20px; border: 1px solid #ccc; }
+            .form-group { margin: 10px 0; }
+            label { display: block; margin-bottom: 5px; }
+            input { width: 100%; padding: 8px; box-sizing: border-box; }
+            button { width: 100%; padding: 10px; background: #007bff; color: white; border: none; }
+        </style>
+    </head>
+    <body>
+        <div class="login-form">
+            <h2>Вход в систему</h2>
+            
+            <?php if (!empty($error)): ?>
+                <div class="error"><?php echo htmlspecialchars($error); ?></div>
+            <?php endif; ?>
+            
+            <form method="POST" action="login.php">
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="Email" required>
+                </div>
+                <div class="form-group">
+                    <label>Пароль:</label>
+                    <input type="password" name="Password" required>
+                </div>
+                <button type="submit">Войти</button>
+            </form>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
 }
 ?>
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход в систему - ТСЖ "Зеленый квартал"</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <style>
-        .login-container {
-            max-width: 400px;
-            margin: 100px auto;
-            padding: 2rem;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-    </style>
-</head>
-<body>
-    <div class="login-container">
-        <div class="login-header">
-            <h2>Вход в систему</h2>
-            <p>ТСЖ "Зеленый квартал"</p>
-        </div>
-        
-        <?php if (isset($error)): ?>
-            <div class="info-panel" style="background: #ffebee; border-color: #f44336; color: #c62828;">
-                <?php echo htmlspecialchars($error); ?>
-            </div>
-        <?php endif; ?>
-        
-        <form method="POST">
-            <div class="form-group">
-                <label class="form-label">Имя пользователя</label>
-                <input type="text" name="username" class="form-control" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Пароль</label>
-                <input type="password" name="password" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%;">Войти</button>
-        </form>
-        
-        <div style="margin-top: 2rem; padding: 1rem; background: #f8f9fa; border-radius: 5px; font-size: 0.9rem;">
-            <strong>Тестовые учетные записи:</strong><br>
-            admin / admin123<br>
-            manager / manager123<br>
-            user / user123
-        </div>
-    </div>
-</body>
-</html>

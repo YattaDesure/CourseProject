@@ -1,0 +1,22 @@
+<?php
+session_start();
+
+// Сохраняем все в лог файл
+file_put_contents('login_debug.log', date('Y-m-d H:i:s') . " - Script started\n", FILE_APPEND);
+
+if ($_POST) {
+    file_put_contents('login_debug.log', "POST data: " . print_r($_POST, true) . "\n", FILE_APPEND);
+    
+    // Простой ответ
+    echo "POST данные получены!<br>";
+    echo "Email: " . ($_POST['Email'] ?? 'empty') . "<br>";
+    echo "Password: " . ($_POST['Password'] ?? 'empty') . "<br>";
+    
+} else {
+    file_put_contents('login_debug.log', "No POST data\n", FILE_APPEND);
+    echo "POST данные НЕ получены<br>";
+}
+
+echo "<hr>";
+echo "<a href='test_form.html'>Вернуться к тестовой форме</a>";
+?>
