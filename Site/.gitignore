@@ -1,0 +1,24 @@
+# Build outputs (auto-generated, can be deleted)
+backend/**/bin/
+backend/**/obj/
+frontend/node_modules/
+frontend/dist/
+
+# IDE files
+.vs/
+.vscode/
+*.user
+*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/tmp/
+
+# Environment files
+.env
+appsettings.Development.json
+
