@@ -1,0 +1,3 @@
+﻿<Project>
+  <Import Project="../buildMultiTargeting/GreenQuarter.Api.props" />
+</Project>
