@@ -1,23 +1,77 @@
 # Green Quarter Property Management
 
-Monorepo for the Green Quarter subsystem. The legacy PHP prototype remains under `php/` for reference, while the new stack introduces:
+Система управления недвижимостью для ЖК "Green Quarter".
 
-- `backend/` – ASP.NET Core 8 Web API (JWT auth, EF Core, export services)
-- `frontend/` – Vue 3 + TypeScript (Composition API, Pinia, role-aware routing)
-- `infrastructure/` – SQL Server artifacts, Docker Compose, deployment helpers
-- `docs/` – architecture notes, deployment runbooks, and user manuals
+## 🚀 Быстрый старт
 
-## Quick start
+### Требования:
+- .NET 9 SDK
+- Node.js 20+
+- SQL Server (локально или в Docker)
 
-1. **Clone & install prerequisites**
-   - .NET 8 SDK, Node.js 20+, Docker Desktop (with Compose V2)
-2. **Environment variables**
-   - Copy `.env.example` to `.env` once created; populate SQL SA password, JWT secrets, admin bootstrap credentials.
-3. **Run the stack**
-   - `docker compose up --build` (applies migrations, seeds sample data, starts API + SPA)
-4. **Access**
-   - API: `http://localhost:5000`
-   - SPA: `http://localhost:5173` (proxied through Nginx container in production)
+### Запуск Backend:
 
-See `docs/DEPLOYMENT.md` for production roll-out, `docs/USER_GUIDE.md` for role behaviors, and `docs/DATABASE.md` for schema details.
+```bash
+cd backend
+dotnet run --project GreenQuarter.Api
+```
 
+Backend будет доступен на: `http://localhost:5001`
+
+### Запуск Frontend:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Frontend будет доступен на: `http://localhost:5173`
+
+## 📋 Настройка
+
+### База данных:
+
+Настройки подключения в `backend/GreenQuarter.Api/appsettings.json`:
+
+```json
+"ConnectionStrings": {
+  "DefaultConnection": "Server=localhost,1433;Database=GreenQuarter;User Id=sa;Password=ваш_пароль;TrustServerCertificate=True;"
+}
+```
+
+### JWT:
+
+Настройки JWT в `backend/GreenQuarter.Api/appsettings.json`:
+
+```json
+"JWT": {
+  "Key": "YourSuperSecretKeyThatIsAtLeast32CharactersLong!",
+  "Issuer": "GreenQuarter",
+  "Audience": "GreenQuarterUsers"
+}
+```
+
+## 🔐 Вход в систему
+
+- Email: `edikyazikov1@gmail.com`
+- Password: `12345678`
+
+## 📁 Структура проекта
+
+- `backend/` - ASP.NET Core API
+- `frontend/` - Vue.js 3 приложение
+- `source/` - Иконки и изображения
+
+## 🛠️ Разработка
+
+### Backend:
+- Swagger UI: `http://localhost:5001/swagger`
+
+### Frontend:
+- Dev сервер: `http://localhost:5173`
+- API проксируется через Vite на `http://localhost:5001`
+
+---
+
+**Готово к разработке! 🎉**
