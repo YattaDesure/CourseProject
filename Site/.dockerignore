@@ -1,12 +1,15 @@
-# Игнорируем все, кроме frontend
-*
-!frontend/
-!Dockerfile
-!.dockerignore
-
-# Игнорируем ненужные файлы из frontend
-frontend/node_modules/
-frontend/dist/
-frontend/.git/
-frontend/.vite/
-
+# Игнорируем ненужные файлы
+node_modules/
+bin/
+obj/
+dist/
+.git/
+.vscode/
+.idea/
+*.md
+*.log
+*.cache
+.DS_Store
+source/
+package.json
+package-lock.json
