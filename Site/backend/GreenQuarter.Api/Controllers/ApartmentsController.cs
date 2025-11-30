@@ -1,9 +1,11 @@
 using System.Data.Common;
 using System.Security.Claims;
+using System.Text;
 using GreenQuarter.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
 
 namespace GreenQuarter.Api.Controllers;
 
@@ -234,6 +236,171 @@ public class ApartmentsController : ControllerBase
     public async Task<IActionResult> DeleteApartment(int id)
     {
         return BadRequest(new { message = "Delete functionality requires database schema update" });
+    }
+
+    [HttpGet("export/excel")]
+    public async Task<IActionResult> ExportToExcel()
+    {
+        var userRole = User.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+        var worksheet = package.Workbook.Worksheets.Add("Квартиры");
+
+        // Headers
+        worksheet.Cells[1, 1].Value = "Номер";
+        worksheet.Cells[1, 2].Value = "Этаж";
+        worksheet.Cells[1, 3].Value = "Площадь";
+        worksheet.Cells[1, 4].Value = "Подъезд";
+        worksheet.Cells[1, 5].Value = "Статус";
+        worksheet.Cells[1, 6].Value = "Владелец";
+        worksheet.Cells[1, 7].Value = "Email владельца";
+
+        using (var command = connection.CreateCommand())
+        {
+            var sql = @"
+                SELECT 
+                    a.Number,
+                    a.Floor,
+                    a.Area,
+                    a.Entrance,
+                    a.ResidentId,
+                    r.FirstName,
+                    r.LastName,
+                    r.Patronymic,
+                    r.Email
+                FROM Apartments a
+                LEFT JOIN Residents r ON a.ResidentId = r.ResidentId
+                WHERE 1=1";
+
+            if (userRole == "User")
+            {
+                sql += " AND a.ResidentId IS NULL";
+            }
+
+            command.CommandText = sql;
+
+            int row = 2;
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var residentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
+                    var status = residentId.HasValue && residentId.Value > 0 ? "Занята" : "Свободна";
+                    var ownerName = "";
+                    if (!reader.IsDBNull(5))
+                    {
+                        var parts = new List<string>();
+                        if (!reader.IsDBNull(6)) parts.Add(reader.GetValue(6)?.ToString() ?? "");
+                        if (!reader.IsDBNull(7)) parts.Add(reader.GetValue(7)?.ToString() ?? "");
+                        if (!reader.IsDBNull(8)) parts.Add(reader.GetValue(8)?.ToString() ?? "");
+                        ownerName = string.Join(" ", parts.Where(p => !string.IsNullOrEmpty(p)));
+                    }
+
+                    worksheet.Cells[row, 1].Value = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                    worksheet.Cells[row, 2].Value = reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetValue(1));
+                    worksheet.Cells[row, 3].Value = reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2));
+                    worksheet.Cells[row, 4].Value = reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString() ?? "";
+                    worksheet.Cells[row, 5].Value = status;
+                    worksheet.Cells[row, 6].Value = ownerName;
+                    worksheet.Cells[row, 7].Value = reader.IsDBNull(8) ? "" : reader.GetValue(8)?.ToString() ?? "";
+                    row++;
+                }
+            }
+        }
+
+        // Auto-fit columns
+        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+        var stream = new MemoryStream();
+        package.SaveAs(stream);
+        stream.Position = 0;
+
+        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+            $"Квартиры_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+    }
+
+    [HttpGet("export/csv")]
+    public async Task<IActionResult> ExportToCsv()
+    {
+        var userRole = User.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        var csv = new StringBuilder();
+        csv.AppendLine("Номер;Этаж;Площадь;Подъезд;Статус;Владелец;Email владельца");
+
+        using (var command = connection.CreateCommand())
+        {
+            var sql = @"
+                SELECT 
+                    a.Number,
+                    a.Floor,
+                    a.Area,
+                    a.Entrance,
+                    a.ResidentId,
+                    r.FirstName,
+                    r.LastName,
+                    r.Patronymic,
+                    r.Email
+                FROM Apartments a
+                LEFT JOIN Residents r ON a.ResidentId = r.ResidentId
+                WHERE 1=1";
+
+            if (userRole == "User")
+            {
+                sql += " AND a.ResidentId IS NULL";
+            }
+
+            command.CommandText = sql;
+
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var residentId = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4);
+                    var status = residentId.HasValue && residentId.Value > 0 ? "Занята" : "Свободна";
+                    var ownerName = "";
+                    if (!reader.IsDBNull(5))
+                    {
+                        var parts = new List<string>();
+                        if (!reader.IsDBNull(6)) parts.Add(reader.GetValue(6)?.ToString() ?? "");
+                        if (!reader.IsDBNull(7)) parts.Add(reader.GetValue(7)?.ToString() ?? "");
+                        if (!reader.IsDBNull(8)) parts.Add(reader.GetValue(8)?.ToString() ?? "");
+                        ownerName = string.Join(" ", parts.Where(p => !string.IsNullOrEmpty(p)));
+                    }
+
+                    csv.AppendLine($"{EscapeCsv(reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "")};" +
+                        $"{(reader.IsDBNull(1) ? 0 : Convert.ToInt32(reader.GetValue(1)))};" +
+                        $"{(reader.IsDBNull(2) ? 0 : Convert.ToDecimal(reader.GetValue(2)))};" +
+                        $"{EscapeCsv(reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(status)};" +
+                        $"{EscapeCsv(ownerName)};" +
+                        $"{EscapeCsv(reader.IsDBNull(8) ? "" : reader.GetValue(8)?.ToString() ?? "")}");
+                }
+            }
+        }
+
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"Квартиры_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+    }
+
+    private string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+        return value;
     }
 }
 

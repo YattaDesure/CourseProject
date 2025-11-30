@@ -2,13 +2,28 @@
   <div class="page">
     <div class="page-header">
       <h2>Мой аккаунт</h2>
+      <div class="tabs">
+        <button 
+          @click="activeTab = 'info'" 
+          :class="['tab', { active: activeTab === 'info' }]"
+        >
+          Информация
+        </button>
+        <button 
+          @click="activeTab = 'settings'" 
+          :class="['tab', { active: activeTab === 'settings' }]"
+        >
+          Настройки
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" style="text-align: center; padding: 48px;">
       Загрузка...
     </div>
 
-    <div v-else-if="account" class="account-content">
+    <!-- Вкладка "Информация" -->
+    <div v-else-if="account && activeTab === 'info'" class="account-content">
       <div class="card" style="margin-bottom: 24px;">
         <h3 style="margin-bottom: 16px;">Личная информация</h3>
         <div class="info-grid">
@@ -107,6 +122,70 @@
         </p>
       </div>
     </div>
+
+    <!-- Вкладка "Настройки" -->
+    <div v-else-if="account && activeTab === 'settings'" class="settings-content">
+      <!-- Редактирование личных данных -->
+      <div class="card" style="margin-bottom: 24px;">
+        <h3 style="margin-bottom: 16px;">Личные данные</h3>
+        <form @submit.prevent="updateProfile" class="form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Имя *</label>
+              <input v-model="profileForm.firstName" type="text" class="input" required />
+            </div>
+            <div class="form-group">
+              <label>Фамилия *</label>
+              <input v-model="profileForm.lastName" type="text" class="input" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Отчество</label>
+              <input v-model="profileForm.patronymic" type="text" class="input" />
+            </div>
+            <div class="form-group">
+              <label>Телефон</label>
+              <input v-model="profileForm.phone" type="tel" class="input" placeholder="+7 (900) 123-45-67" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input v-model="profileForm.email" type="email" class="input" required />
+          </div>
+          <div v-if="profileError" class="error-message">{{ profileError }}</div>
+          <div v-if="profileSuccess" class="success-message">{{ profileSuccess }}</div>
+          <button type="submit" class="btn btn-primary" :disabled="profileLoading">
+            {{ profileLoading ? 'Сохранение...' : 'Сохранить изменения' }}
+          </button>
+        </form>
+      </div>
+
+      <!-- Смена пароля -->
+      <div class="card">
+        <h3 style="margin-bottom: 16px;">Смена пароля</h3>
+        <form @submit.prevent="changePassword" class="form">
+          <div class="form-group">
+            <label>Текущий пароль *</label>
+            <input v-model="passwordForm.oldPassword" type="password" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Новый пароль *</label>
+            <input v-model="passwordForm.newPassword" type="password" class="input" required minlength="6" />
+            <small style="color: var(--text-muted); font-size: 12px;">Минимум 6 символов</small>
+          </div>
+          <div class="form-group">
+            <label>Подтвердите новый пароль *</label>
+            <input v-model="passwordForm.confirmPassword" type="password" class="input" required minlength="6" />
+          </div>
+          <div v-if="passwordError" class="error-message">{{ passwordError }}</div>
+          <div v-if="passwordSuccess" class="success-message">{{ passwordSuccess }}</div>
+          <button type="submit" class="btn btn-primary" :disabled="passwordLoading">
+            {{ passwordLoading ? 'Изменение...' : 'Изменить пароль' }}
+          </button>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -118,11 +197,43 @@ import { useAuthStore } from '../stores/auth'
 const authStore = useAuthStore()
 const account = ref(null)
 const loading = ref(true)
+const activeTab = ref('info')
+
+const profileLoading = ref(false)
+const passwordLoading = ref(false)
+const profileError = ref('')
+const profileSuccess = ref('')
+const passwordError = ref('')
+const passwordSuccess = ref('')
+
+const profileForm = ref({
+  firstName: '',
+  lastName: '',
+  patronymic: '',
+  phone: '',
+  email: ''
+})
+
+const passwordForm = ref({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
 
 async function loadAccount() {
   try {
     const response = await api.get('/api/account/me')
     account.value = response.data
+    
+    // Заполнить форму профиля
+    profileForm.value = {
+      firstName: account.value.firstName || '',
+      lastName: account.value.lastName || '',
+      patronymic: account.value.patronymic || '',
+      phone: account.value.phone || '',
+      email: account.value.email || ''
+    }
+    
     // Update auth store with role from account if different
     if (account.value && account.value.role && authStore.user) {
       authStore.user.role = account.value.role
@@ -132,6 +243,79 @@ async function loadAccount() {
     console.error('Failed to load account:', error)
   } finally {
     loading.value = false
+  }
+}
+
+async function updateProfile() {
+  profileError.value = ''
+  profileSuccess.value = ''
+  profileLoading.value = true
+
+  try {
+    await api.put('/api/account/profile', profileForm.value)
+    profileSuccess.value = 'Профиль успешно обновлен!'
+    
+    // Обновить данные аккаунта
+    await loadAccount()
+    
+    // Обновить данные в store
+    if (authStore.user) {
+      authStore.user.email = profileForm.value.email
+      authStore.user.firstName = profileForm.value.firstName
+      authStore.user.lastName = profileForm.value.lastName
+    }
+    
+    // Очистить сообщение через 3 секунды
+    setTimeout(() => {
+      profileSuccess.value = ''
+    }, 3000)
+  } catch (error) {
+    profileError.value = error.response?.data?.message || 'Ошибка при обновлении профиля'
+  } finally {
+    profileLoading.value = false
+  }
+}
+
+async function changePassword() {
+  passwordError.value = ''
+  passwordSuccess.value = ''
+
+  // Валидация
+  if (passwordForm.value.newPassword !== passwordForm.value.confirmPassword) {
+    passwordError.value = 'Новые пароли не совпадают'
+    return
+  }
+
+  if (passwordForm.value.newPassword.length < 6) {
+    passwordError.value = 'Новый пароль должен содержать минимум 6 символов'
+    return
+  }
+
+  passwordLoading.value = true
+
+  try {
+    await api.put('/api/account/password', {
+      oldPassword: passwordForm.value.oldPassword,
+      newPassword: passwordForm.value.newPassword
+    })
+    
+    passwordSuccess.value = 'Пароль успешно изменен!'
+    
+    // Очистить форму
+    passwordForm.value = {
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    }
+    
+    // Очистить сообщение через 3 секунды
+    setTimeout(() => {
+      passwordSuccess.value = ''
+    }, 3000)
+  } catch (error) {
+    passwordError.value = error.response?.data?.message || 'Ошибка при изменении пароля'
+  } finally {
+    passwordLoading.value = false
   }
 }
 
@@ -201,5 +385,88 @@ onMounted(() => {
   margin: 0;
   color: var(--text);
   font-size: 16px;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  border-bottom: 2px solid var(--border);
+}
+
+.tab {
+  padding: 12px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.settings-content {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.form-group small {
+  margin-top: -4px;
+}
+
+.error-message {
+  padding: 12px;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 8px;
+  color: #c33;
+}
+
+.success-message {
+  padding: 12px;
+  background: #efe;
+  border: 1px solid #cfc;
+  border-radius: 8px;
+  color: #3c3;
+}
+
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -1,45 +1,22 @@
-version: '3.8'
-
 services:
-  # База данных SQL Server
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: greenquarter-db
-    environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=22332123Yaz
-      - MSSQL_PID=Express
-    ports:
-      - "1433:1433"
-    volumes:
-      - sqlserver_data:/var/opt/mssql
-    healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 22332123Yaz -Q "SELECT 1" || exit 1
-      interval: 10s
-      timeout: 3s
-      retries: 10
-    networks:
-      - greenquarter-network
-
   # Backend API
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: greenquarter-api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://0.0.0.0:5001
-      - ConnectionStrings__DefaultConnection=Server=db,1433;Database=GreenQuarter;User Id=SA;Password=22332123Yaz;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=host.docker.internal,1433;Database=Cursovaya;User Id=SA;Password=22332123Yaz;TrustServerCertificate=True;
       - JWT__Key=YourSuperSecretKeyThatIsAtLeast32CharactersLong!
       - JWT__Issuer=GreenQuarter
       - JWT__Audience=GreenQuarterUsers
       - AllowedOrigins=http://localhost:5173,http://localhost:80,http://localhost
     ports:
       - "5001:5001"
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - greenquarter-network
     restart: unless-stopped
@@ -59,9 +36,6 @@ services:
     networks:
       - greenquarter-network
     restart: unless-stopped
-
-volumes:
-  sqlserver_data:
 
 networks:
   greenquarter-network:

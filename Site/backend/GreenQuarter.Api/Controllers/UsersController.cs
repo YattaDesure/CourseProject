@@ -1,8 +1,10 @@
 using System.Data.Common;
+using System.Text;
 using GreenQuarter.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using OfficeOpenXml;
 
 namespace GreenQuarter.Api.Controllers;
 
@@ -429,6 +431,144 @@ public class UsersController : ControllerBase
         }
 
         return Ok(residents);
+    }
+
+    [HttpGet("export/excel")]
+    public async Task<IActionResult> ExportToExcel()
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        using var package = new ExcelPackage();
+        var worksheet = package.Workbook.Worksheets.Add("Пользователи");
+
+        worksheet.Cells[1, 1].Value = "Email";
+        worksheet.Cells[1, 2].Value = "Имя";
+        worksheet.Cells[1, 3].Value = "Фамилия";
+        worksheet.Cells[1, 4].Value = "Отчество";
+        worksheet.Cells[1, 5].Value = "Телефон";
+        worksheet.Cells[1, 6].Value = "Роль";
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                SELECT 
+                    r.Email,
+                    r.FirstName,
+                    r.LastName,
+                    r.Patronymic,
+                    r.Phone,
+                    COALESCE(rol.RoleName, 'User') as RoleName
+                FROM Residents r
+                LEFT JOIN ResidentRoles rr ON r.ResidentId = rr.ResidentId
+                LEFT JOIN roles rol ON rr.RoleId = rol.RoleId
+                ORDER BY r.LastName, r.FirstName";
+
+            int row = 2;
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var roleName = reader.IsDBNull(5) ? "User" : (reader.GetValue(5)?.ToString() ?? "User");
+                    string mappedRole = "Пользователь";
+                    if (roleName.Contains("Администратор") || roleName.Contains("Admin"))
+                    {
+                        mappedRole = "Администратор";
+                    }
+                    else if (roleName.Contains("Модератор") || roleName.Contains("Moderator"))
+                    {
+                        mappedRole = "Модератор";
+                    }
+
+                    worksheet.Cells[row, 1].Value = reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "";
+                    worksheet.Cells[row, 2].Value = reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "";
+                    worksheet.Cells[row, 3].Value = reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "";
+                    worksheet.Cells[row, 4].Value = reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString() ?? "";
+                    worksheet.Cells[row, 5].Value = reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString() ?? "";
+                    worksheet.Cells[row, 6].Value = mappedRole;
+                    row++;
+                }
+            }
+        }
+
+        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+        var stream = new MemoryStream();
+        package.SaveAs(stream);
+        stream.Position = 0;
+
+        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+            $"Пользователи_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+    }
+
+    [HttpGet("export/csv")]
+    public async Task<IActionResult> ExportToCsv()
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        var csv = new StringBuilder();
+        csv.AppendLine("Email;Имя;Фамилия;Отчество;Телефон;Роль");
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                SELECT 
+                    r.Email,
+                    r.FirstName,
+                    r.LastName,
+                    r.Patronymic,
+                    r.Phone,
+                    COALESCE(rol.RoleName, 'User') as RoleName
+                FROM Residents r
+                LEFT JOIN ResidentRoles rr ON r.ResidentId = rr.ResidentId
+                LEFT JOIN roles rol ON rr.RoleId = rol.RoleId
+                ORDER BY r.LastName, r.FirstName";
+
+            using (var reader = await command.ExecuteReaderAsync())
+            {
+                while (await reader.ReadAsync())
+                {
+                    var roleName = reader.IsDBNull(5) ? "User" : (reader.GetValue(5)?.ToString() ?? "User");
+                    string mappedRole = "Пользователь";
+                    if (roleName.Contains("Администратор") || roleName.Contains("Admin"))
+                    {
+                        mappedRole = "Администратор";
+                    }
+                    else if (roleName.Contains("Модератор") || roleName.Contains("Moderator"))
+                    {
+                        mappedRole = "Модератор";
+                    }
+
+                    csv.AppendLine($"{EscapeCsv(reader.IsDBNull(0) ? "" : reader.GetValue(0)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(reader.IsDBNull(1) ? "" : reader.GetValue(1)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(reader.IsDBNull(2) ? "" : reader.GetValue(2)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(reader.IsDBNull(3) ? "" : reader.GetValue(3)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(reader.IsDBNull(4) ? "" : reader.GetValue(4)?.ToString() ?? "")};" +
+                        $"{EscapeCsv(mappedRole)}");
+                }
+            }
+        }
+
+        var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(csv.ToString())).ToArray();
+        return File(bytes, "text/csv; charset=utf-8", $"Пользователи_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+    }
+
+    private string EscapeCsv(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        if (value.Contains(';') || value.Contains('"') || value.Contains('\n'))
+        {
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
+        return value;
     }
 }
 

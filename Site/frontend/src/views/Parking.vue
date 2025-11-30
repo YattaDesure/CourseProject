@@ -2,9 +2,17 @@
   <div class="page">
     <div class="page-header">
       <h2>Паркинг</h2>
-      <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
-        + Добавить место
-      </button>
+      <div style="display: flex; gap: 8px;">
+        <button @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
+          📊 Excel
+        </button>
+        <button @click="exportToCsv" class="btn btn-secondary" style="padding: 8px 16px;">
+          📄 CSV
+        </button>
+        <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
+          + Добавить место
+        </button>
+      </div>
     </div>
 
     <div class="filters">
@@ -29,7 +37,7 @@
             <th>Номер места</th>
             <th>Площадь (м²)</th>
             <th>Статус</th>
-            <th>Назначено</th>
+            <th>Владелец</th>
             <th v-if="authStore.isModerator">Действия</th>
           </tr>
         </thead>
@@ -188,6 +196,44 @@ function getStatusBadgeClass(status) {
   if (status === 'Occupied') return 'badge badge-warning'
   if (status === 'Available') return 'badge badge-success'
   return 'badge badge-info'
+}
+
+async function exportToExcel() {
+  try {
+    const response = await api.get('/api/parking/export/excel', {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Паркинг_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to export to Excel:', error)
+    alert('Ошибка при экспорте в Excel')
+  }
+}
+
+async function exportToCsv() {
+  try {
+    const response = await api.get('/api/parking/export/csv', {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Паркинг_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to export to CSV:', error)
+    alert('Ошибка при экспорте в CSV')
+  }
 }
 
 onMounted(() => {

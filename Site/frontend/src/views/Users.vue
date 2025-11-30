@@ -2,9 +2,17 @@
   <div class="page">
     <div class="page-header">
       <h2>Пользователи</h2>
-      <button @click="showAddModal = true" class="btn btn-primary">
-        + Добавить пользователя
-      </button>
+      <div style="display: flex; gap: 8px;">
+        <button @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
+          📊 Excel
+        </button>
+        <button @click="exportToCsv" class="btn btn-secondary" style="padding: 8px 16px;">
+          📄 CSV
+        </button>
+        <button @click="showAddModal = true" class="btn btn-primary">
+          + Добавить пользователя
+        </button>
+      </div>
     </div>
 
     <div class="filters">
@@ -279,6 +287,44 @@ function getRoleBadgeClass(role) {
   if (role === 'Admin') return 'badge badge-warning'
   if (role === 'Moderator') return 'badge badge-info'
   return 'badge badge-success'
+}
+
+async function exportToExcel() {
+  try {
+    const response = await api.get('/api/users/export/excel', {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Пользователи_${new Date().toISOString().slice(0, 10)}.xlsx`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to export to Excel:', error)
+    alert('Ошибка при экспорте в Excel')
+  }
+}
+
+async function exportToCsv() {
+  try {
+    const response = await api.get('/api/users/export/csv', {
+      responseType: 'blob'
+    })
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `Пользователи_${new Date().toISOString().slice(0, 10)}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to export to CSV:', error)
+    alert('Ошибка при экспорте в CSV')
+  }
 }
 
 onMounted(() => {

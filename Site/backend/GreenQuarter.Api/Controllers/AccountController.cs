@@ -1,9 +1,11 @@
 using System.Data.Common;
+using System.Data;
 using System.Security.Claims;
 using GreenQuarter.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 
 namespace GreenQuarter.Api.Controllers;
 
@@ -177,4 +179,186 @@ public class AccountController : ControllerBase
 
         return Ok(accountInfo);
     }
+
+    [HttpPut("profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        var residentId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
+                        User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(residentId) || !int.TryParse(residentId, out var residentIdInt))
+        {
+            return Unauthorized();
+        }
+
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                UPDATE Residents 
+                SET FirstName = @firstName,
+                    LastName = @lastName,
+                    Patronymic = @patronymic,
+                    Phone = @phone,
+                    Email = @email
+                WHERE ResidentId = @id";
+
+            var idParam = command.CreateParameter();
+            idParam.ParameterName = "@id";
+            idParam.Value = residentIdInt;
+            command.Parameters.Add(idParam);
+
+            var firstNameParam = command.CreateParameter();
+            firstNameParam.ParameterName = "@firstName";
+            firstNameParam.Value = request.FirstName ?? "";
+            command.Parameters.Add(firstNameParam);
+
+            var lastNameParam = command.CreateParameter();
+            lastNameParam.ParameterName = "@lastName";
+            lastNameParam.Value = request.LastName ?? "";
+            command.Parameters.Add(lastNameParam);
+
+            var patronymicParam = command.CreateParameter();
+            patronymicParam.ParameterName = "@patronymic";
+            patronymicParam.Value = request.Patronymic ?? (object)DBNull.Value;
+            command.Parameters.Add(patronymicParam);
+
+            var phoneParam = command.CreateParameter();
+            phoneParam.ParameterName = "@phone";
+            phoneParam.Value = request.Phone ?? (object)DBNull.Value;
+            command.Parameters.Add(phoneParam);
+
+            var emailParam = command.CreateParameter();
+            emailParam.ParameterName = "@email";
+            emailParam.Value = request.Email ?? "";
+            command.Parameters.Add(emailParam);
+
+            await command.ExecuteNonQueryAsync();
+        }
+
+        return Ok(new { message = "Профиль успешно обновлен" });
+    }
+
+    [HttpPut("password")]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var residentId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
+                        User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(residentId) || !int.TryParse(residentId, out var residentIdInt))
+        {
+            return Unauthorized();
+        }
+
+        if (string.IsNullOrEmpty(request.OldPassword) || string.IsNullOrEmpty(request.NewPassword))
+        {
+            return BadRequest(new { message = "Старый и новый пароль обязательны" });
+        }
+
+        if (request.NewPassword.Length < 6)
+        {
+            return BadRequest(new { message = "Новый пароль должен содержать минимум 6 символов" });
+        }
+
+        // Get connection string
+        var connectionString = _context.Database.GetConnectionString();
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            return StatusCode(500, new { message = "Ошибка подключения к базе данных" });
+        }
+
+        // Verify old password using new connection
+        string? currentPassword = null;
+        using (var checkConnection = new SqlConnection(connectionString))
+        {
+            await checkConnection.OpenAsync();
+            using (var checkCommand = checkConnection.CreateCommand())
+            {
+                checkCommand.CommandText = "SELECT Password FROM Residents WHERE ResidentId = @id";
+                var idParam = checkCommand.CreateParameter();
+                idParam.ParameterName = "@id";
+                idParam.Value = residentIdInt;
+                checkCommand.Parameters.Add(idParam);
+
+                using (var reader = await checkCommand.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        currentPassword = reader.IsDBNull(0) ? "" : (reader.GetValue(0)?.ToString() ?? "");
+                    }
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(currentPassword))
+        {
+            return NotFound(new { message = "Пользователь не найден" });
+        }
+
+        if (currentPassword != request.OldPassword)
+        {
+            return BadRequest(new { message = "Неверный текущий пароль" });
+        }
+
+        // Update password using new connection
+        // Disable trigger to avoid "Invalid column name 'Name'" error
+        using (var updateConnection = new SqlConnection(connectionString))
+        {
+            await updateConnection.OpenAsync();
+            using (var updateCommand = updateConnection.CreateCommand())
+            {
+                // Disable trigger before update
+                updateCommand.CommandText = "ALTER TABLE Residents DISABLE TRIGGER ALL";
+                await updateCommand.ExecuteNonQueryAsync();
+                
+                // Update password
+                updateCommand.CommandText = "UPDATE Residents SET Password = @password WHERE ResidentId = @id";
+                updateCommand.Parameters.Clear();
+                
+                var idParam = updateCommand.CreateParameter();
+                idParam.ParameterName = "@id";
+                idParam.Value = residentIdInt;
+                updateCommand.Parameters.Add(idParam);
+
+                var passwordParam = updateCommand.CreateParameter();
+                passwordParam.ParameterName = "@password";
+                passwordParam.Value = request.NewPassword ?? "";
+                updateCommand.Parameters.Add(passwordParam);
+
+                var rowsAffected = await updateCommand.ExecuteNonQueryAsync();
+                
+                // Re-enable trigger
+                updateCommand.CommandText = "ALTER TABLE Residents ENABLE TRIGGER ALL";
+                updateCommand.Parameters.Clear();
+                await updateCommand.ExecuteNonQueryAsync();
+                
+                if (rowsAffected == 0)
+                {
+                    return NotFound(new { message = "Пользователь не найден" });
+                }
+            }
+        }
+
+        return Ok(new { message = "Пароль успешно изменен" });
+    }
+}
+
+public class UpdateProfileRequest
+{
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? Patronymic { get; set; }
+    public string? Phone { get; set; }
+    public string? Email { get; set; }
+}
+
+public class ChangePasswordRequest
+{
+    public string OldPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }

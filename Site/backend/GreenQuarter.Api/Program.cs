@@ -135,11 +135,19 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Ensure database is created
+// Ensure database is created (only if needed, skip if tables already exist)
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.EnsureCreated();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        // Don't call EnsureCreated() - we use existing database with Residents table
+        // db.Database.EnsureCreated();
+    }
+    catch
+    {
+        // Ignore database initialization errors
+    }
 }
 
 app.Run();

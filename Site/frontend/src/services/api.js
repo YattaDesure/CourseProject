@@ -2,8 +2,9 @@ import axios from 'axios'
 
 // В Docker используем относительный путь (прокси через Nginx)
 // В dev режиме используем полный URL
+// Nginx уже проксирует /api, поэтому используем просто /api без дублирования
 const baseURL = import.meta.env.VITE_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:5001' : '/api')
+  (import.meta.env.DEV ? 'http://localhost:5001' : '')
 
 const api = axios.create({
   baseURL: baseURL,
