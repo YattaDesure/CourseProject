@@ -239,6 +239,7 @@ public class ApartmentsController : ControllerBase
     }
 
     [HttpGet("export/excel")]
+    [Authorize(Roles = "Moderator,Admin")]
     public async Task<IActionResult> ExportToExcel()
     {
         var userRole = User.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;
@@ -326,6 +327,7 @@ public class ApartmentsController : ControllerBase
     }
 
     [HttpGet("export/csv")]
+    [Authorize(Roles = "Moderator,Admin")]
     public async Task<IActionResult> ExportToCsv()
     {
         var userRole = User.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;

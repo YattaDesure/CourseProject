@@ -3,10 +3,10 @@
     <div class="page-header">
       <h2>Паркинг</h2>
       <div style="display: flex; gap: 8px;">
-        <button @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
+        <button v-if="authStore.isModerator" @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
           📊 Excel
         </button>
-        <button @click="exportToCsv" class="btn btn-secondary" style="padding: 8px 16px;">
+        <button v-if="authStore.isModerator" @click="exportToCsv" class="btn btn-secondary" style="padding: 8px 16px;">
           📄 CSV
         </button>
         <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
