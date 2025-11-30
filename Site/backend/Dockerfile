@@ -2,11 +2,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
+# Copy solution file first
+COPY GreenQuarter.sln .
+
 # Copy csproj files and restore dependencies
 COPY ["GreenQuarter.Api/GreenQuarter.Api.csproj", "GreenQuarter.Api/"]
 COPY ["GreenQuarter.Infrastructure/GreenQuarter.Infrastructure.csproj", "GreenQuarter.Infrastructure/"]
 COPY ["GreenQuarter.Domain/GreenQuarter.Domain.csproj", "GreenQuarter.Domain/"]
-RUN dotnet restore "GreenQuarter.Api/GreenQuarter.Api.csproj"
+
+# Restore dependencies using solution file (more reliable)
+RUN dotnet restore GreenQuarter.sln
 
 # Copy everything else and build
 COPY . .

@@ -1,0 +1,31 @@
+=== НАСТРОЙКИ ДЛЯ TIMEWEB ===
+
+Окружение: .NET
+Фреймворк: ASP.NET
+Версия окружения: 9.0
+
+Команда сборки:
+cd backend && dotnet restore GreenQuarter.sln && dotnet build GreenQuarter.Api/GreenQuarter.Api.csproj -c Release
+
+Команда запуска:
+dotnet run --project backend/GreenQuarter.Api/GreenQuarter.Api.csproj --urls "http://0.0.0.0:8080"
+
+Путь проверки состояния:
+/swagger
+
+Зависимости:
+(пусто)
+
+=== ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ===
+
+DB_HOST = адрес_из_ngrok
+DB_PORT = порт_из_туннеля
+DB_NAME = GreenQuarter
+DB_USER = sa
+DB_PASSWORD = ваш_пароль
+
+JWT_KEY = YourSuperSecretKeyThatIsAtLeast32CharactersLong!
+JWT_ISSUER = GreenQuarter
+JWT_AUDIENCE = GreenQuarterUsers
+
+AllowedOrigins = https://ваш-домен-frontend.timeweb.cloud
