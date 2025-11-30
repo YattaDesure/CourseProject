@@ -52,16 +52,11 @@ public class ApartmentsController : ControllerBase
                 LEFT JOIN Residents r ON a.ResidentId = r.ResidentId
                 WHERE 1=1";
 
-            // For now, show all apartments to all users since ResidentId links may not be set
-            // TODO: Implement proper filtering when data is linked correctly
-            // if (userRole == "User" && !string.IsNullOrEmpty(residentId) && int.TryParse(residentId, out var residentIdInt))
-            // {
-            //     sql += " AND a.ResidentId = @residentId";
-            //     var param = command.CreateParameter();
-            //     param.ParameterName = "@residentId";
-            //     param.Value = residentIdInt;
-            //     command.Parameters.Add(param);
-            // }
+            // Users can only see Available apartments (no owner)
+            if (userRole == "User")
+            {
+                sql += " AND a.ResidentId IS NULL";
+            }
 
             if (!string.IsNullOrEmpty(search))
             {

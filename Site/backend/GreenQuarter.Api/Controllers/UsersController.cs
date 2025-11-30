@@ -283,6 +283,117 @@ public class UsersController : ControllerBase
         return NoContent();
     }
 
+    [HttpPost]
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
+    {
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        // Check if email already exists
+        using (var checkCommand = connection.CreateCommand())
+        {
+            checkCommand.CommandText = "SELECT COUNT(*) FROM Residents WHERE Email = @email";
+            var emailCheckParam = checkCommand.CreateParameter();
+            emailCheckParam.ParameterName = "@email";
+            emailCheckParam.Value = request.Email ?? "";
+            checkCommand.Parameters.Add(emailCheckParam);
+
+            var count = (int)(await checkCommand.ExecuteScalarAsync() ?? 0);
+            if (count > 0)
+            {
+                return BadRequest(new { message = "Пользователь с таким email уже существует" });
+            }
+        }
+
+        // Insert new resident
+        int newResidentId;
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = @"
+                INSERT INTO Residents (Email, Password, FirstName, LastName, Patronymic, Phone)
+                OUTPUT INSERTED.ResidentId
+                VALUES (@email, @password, @firstName, @lastName, @patronymic, @phone)";
+
+            var emailParam = command.CreateParameter();
+            emailParam.ParameterName = "@email";
+            emailParam.Value = request.Email ?? "";
+            command.Parameters.Add(emailParam);
+
+            var passwordParam = command.CreateParameter();
+            passwordParam.ParameterName = "@password";
+            passwordParam.Value = request.Password ?? "";
+            command.Parameters.Add(passwordParam);
+
+            var firstNameParam = command.CreateParameter();
+            firstNameParam.ParameterName = "@firstName";
+            firstNameParam.Value = request.FirstName ?? "";
+            command.Parameters.Add(firstNameParam);
+
+            var lastNameParam = command.CreateParameter();
+            lastNameParam.ParameterName = "@lastName";
+            lastNameParam.Value = request.LastName ?? "";
+            command.Parameters.Add(lastNameParam);
+
+            var patronymicParam = command.CreateParameter();
+            patronymicParam.ParameterName = "@patronymic";
+            patronymicParam.Value = request.Patronymic ?? (object)DBNull.Value;
+            command.Parameters.Add(patronymicParam);
+
+            var phoneParam = command.CreateParameter();
+            phoneParam.ParameterName = "@phone";
+            phoneParam.Value = request.Phone ?? (object)DBNull.Value;
+            command.Parameters.Add(phoneParam);
+
+            newResidentId = (int)(await command.ExecuteScalarAsync() ?? 0);
+        }
+
+        // Set role if provided
+        if (!string.IsNullOrEmpty(request.Role) && request.Role != "User")
+        {
+            int roleId = 1; // Default to User
+            if (request.Role == "Admin")
+            {
+                roleId = 3;
+            }
+            else if (request.Role == "Moderator")
+            {
+                roleId = 2;
+            }
+
+            using (var roleCommand = connection.CreateCommand())
+            {
+                roleCommand.CommandText = "INSERT INTO ResidentRoles (ResidentId, RoleId) VALUES (@id, @roleId)";
+                var idParam = roleCommand.CreateParameter();
+                idParam.ParameterName = "@id";
+                idParam.Value = newResidentId;
+                roleCommand.Parameters.Add(idParam);
+
+                var roleIdParam = roleCommand.CreateParameter();
+                roleIdParam.ParameterName = "@roleId";
+                roleIdParam.Value = roleId;
+                roleCommand.Parameters.Add(roleIdParam);
+
+                await roleCommand.ExecuteNonQueryAsync();
+            }
+        }
+
+        // Return created user
+        return CreatedAtAction(nameof(GetUser), new { id = newResidentId.ToString() }, new
+        {
+            Id = newResidentId.ToString(),
+            Email = request.Email,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Patronymic = request.Patronymic,
+            Phone = request.Phone,
+            Role = request.Role ?? "User",
+            IsActive = true
+        });
+    }
+
     [HttpGet("residents")]
     public async Task<IActionResult> GetResidents()
     {
@@ -333,4 +444,15 @@ public class UpdateUserRequest
 public class UpdateRoleRequest
 {
     public string Role { get; set; } = string.Empty;
+}
+
+public class CreateUserRequest
+{
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? Patronymic { get; set; }
+    public string? Phone { get; set; }
+    public string Role { get; set; } = "User";
 }

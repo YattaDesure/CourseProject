@@ -152,11 +152,11 @@ public class AuthController : ControllerBase
                 });
             }
 
-            return Unauthorized(new { message = "Invalid credentials" });
+            return Unauthorized(new { message = "Неверные учетные данные" });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = "An error occurred during login", error = ex.Message });
+            return StatusCode(500, new { message = "Произошла ошибка при входе", error = ex.Message });
         }
     }
 

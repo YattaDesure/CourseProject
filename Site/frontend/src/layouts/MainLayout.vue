@@ -2,14 +2,14 @@
   <div class="layout">
     <header class="header">
       <div class="header-content">
-        <h1 class="logo">🏠 Green Quarter</h1>
+        <h1 class="logo">🏠 Зеленый Квартал</h1>
         <nav class="nav">
-          <router-link to="/apartments" class="nav-link">Apartments</router-link>
-          <router-link to="/parking" class="nav-link">Parking</router-link>
-          <router-link to="/storage" class="nav-link">Storage</router-link>
-          <router-link v-if="authStore.isAdmin" to="/users" class="nav-link">Users</router-link>
-          <router-link to="/account" class="nav-link">My Account</router-link>
-          <button @click="handleLogout" class="btn btn-secondary">Logout</button>
+          <router-link to="/apartments" class="nav-link">Квартиры</router-link>
+          <router-link to="/parking" class="nav-link">Парковка</router-link>
+          <router-link to="/storage" class="nav-link">Кладовые</router-link>
+          <router-link v-if="authStore.isAdmin" to="/users" class="nav-link">Пользователи</router-link>
+          <router-link to="/account" class="nav-link">Мой аккаунт</router-link>
+          <button @click="handleLogout" class="btn btn-secondary">Выйти</button>
         </nav>
       </div>
     </header>
@@ -19,8 +19,8 @@
     <footer class="footer">
       <div class="footer-content">
         <div class="footer-section">
-          <h3>Green Quarter</h3>
-          <p>Property Management System</p>
+          <h3>Зеленый Квартал</h3>
+          <p>Система управления недвижимостью</p>
           <p>Жилой комплекс "Зеленый Квартал"</p>
         </div>
         <div class="footer-section">

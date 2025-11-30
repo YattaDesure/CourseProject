@@ -1,9 +1,9 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>Parking Spaces</h2>
+      <h2>Паркинг</h2>
       <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
-        + Add Parking Space
+        + Добавить место
       </button>
     </div>
 
@@ -11,15 +11,14 @@
       <input
         v-model="search"
         type="text"
-        placeholder="Search by slot number..."
+        placeholder="Поиск по номеру места..."
         class="input"
         style="max-width: 300px;"
       />
       <select v-model="statusFilter" class="input" style="max-width: 200px;">
-        <option value="">All Status</option>
-        <option value="Available">Available</option>
-        <option value="Occupied">Occupied</option>
-        <option value="Reserved">Reserved</option>
+        <option value="">Все статусы</option>
+        <option value="Available">Свободно</option>
+        <option value="Occupied">Занято</option>
       </select>
     </div>
 
@@ -27,11 +26,11 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Slot Number</th>
-            <th>Area (m²)</th>
-            <th>Status</th>
-            <th>Assigned To</th>
-            <th v-if="authStore.isModerator">Actions</th>
+            <th>Номер места</th>
+            <th>Площадь (м²)</th>
+            <th>Статус</th>
+            <th>Назначено</th>
+            <th v-if="authStore.isModerator">Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -39,7 +38,7 @@
             <td>{{ space.slotNumber }}</td>
             <td>{{ parseFloat(space.area).toFixed(2) }}</td>
             <td>
-              <span :class="getStatusBadgeClass(space.status)">{{ space.status }}</span>
+              <span :class="getStatusBadgeClass(space.status)">{{ getStatusText(space.status) }}</span>
             </td>
             <td>
               <span v-for="(user, idx) in space.users" :key="idx">
@@ -49,13 +48,13 @@
             </td>
             <td v-if="authStore.isModerator">
               <button @click="editSpace(space)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                Edit
+                Редактировать
               </button>
             </td>
           </tr>
           <tr v-if="filteredSpaces.length === 0">
             <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              No parking spaces found
+              Места не найдены
             </td>
           </tr>
         </tbody>
@@ -65,32 +64,28 @@
     <!-- Add/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="showModal = false">
       <div class="modal" @click.stop>
-        <h3>{{ editingSpace ? 'Edit' : 'Add' }} Parking Space</h3>
+        <h3>{{ editingSpace ? 'Редактировать' : 'Добавить' }} место</h3>
         <form @submit.prevent="saveSpace">
           <div class="form-group">
-            <label>Slot Number</label>
+            <label>Номер места</label>
             <input v-model="form.slotNumber" class="input" required />
           </div>
           <div class="form-group">
-            <label>Section</label>
-            <input v-model="form.section" class="input" required />
-          </div>
-          <div class="form-group">
-            <label>Area (m²)</label>
+            <label>Площадь (м²)</label>
             <input v-model.number="form.area" type="number" step="0.1" class="input" required />
           </div>
           <div class="form-group">
-            <label>Owner</label>
+            <label>Владелец</label>
             <select v-model.number="form.ownerId" class="input">
-              <option :value="null">No Owner (Available)</option>
+              <option :value="null">Нет владельца (Свободно)</option>
               <option v-for="resident in residents" :key="resident.id" :value="resident.id">
                 {{ resident.firstName }} {{ resident.lastName }} ({{ resident.email }})
               </option>
             </select>
           </div>
           <div class="modal-actions">
-            <button type="button" @click="showModal = false" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" @click="showModal = false" class="btn btn-secondary">Отмена</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
           </div>
         </form>
       </div>
@@ -179,8 +174,14 @@ async function saveSpace() {
     await loadSpaces()
   } catch (error) {
     console.error('Failed to save parking space:', error)
-    alert('Failed to save parking space')
+    alert('Ошибка при сохранении места')
   }
+}
+
+function getStatusText(status) {
+  if (status === 'Occupied') return 'Занято'
+  if (status === 'Available') return 'Свободно'
+  return status
 }
 
 function getStatusBadgeClass(status) {

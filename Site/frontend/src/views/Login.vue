@@ -1,20 +1,20 @@
 <template>
   <div class="login-container">
     <div class="login-card">
-      <h1 class="login-title">🏠 Green Quarter</h1>
-      <p class="login-subtitle">Property Management System</p>
+      <h1 class="login-title">🏠 Зеленый Квартал</h1>
+      <p class="login-subtitle">Система управления недвижимостью</p>
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
           <label>Email</label>
           <input v-model="email" type="email" class="input" required />
         </div>
         <div class="form-group">
-          <label>Password</label>
+          <label>Пароль</label>
           <input v-model="password" type="password" class="input" required />
         </div>
         <div v-if="error" class="error-message">{{ error }}</div>
         <button type="submit" class="btn btn-primary" :disabled="loading">
-          {{ loading ? 'Logging in...' : 'Login' }}
+          {{ loading ? 'Вход...' : 'Войти' }}
         </button>
       </form>
     </div>

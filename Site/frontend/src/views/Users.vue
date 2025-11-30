@@ -1,22 +1,25 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>Users</h2>
+      <h2>Пользователи</h2>
+      <button @click="showAddModal = true" class="btn btn-primary">
+        + Добавить пользователя
+      </button>
     </div>
 
     <div class="filters">
       <input
         v-model="search"
         type="text"
-        placeholder="Search by name or email..."
+        placeholder="Поиск по имени или email..."
         class="input"
         style="max-width: 300px;"
       />
       <select v-model="roleFilter" class="input" style="max-width: 200px;">
-        <option value="">All Roles</option>
-        <option value="User">User</option>
-        <option value="Moderator">Moderator</option>
-        <option value="Admin">Admin</option>
+        <option value="">Все роли</option>
+        <option value="User">Пользователь</option>
+        <option value="Moderator">Модератор</option>
+        <option value="Admin">Администратор</option>
       </select>
     </div>
 
@@ -24,12 +27,12 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Name</th>
+            <th>Имя</th>
             <th>Email</th>
-            <th>Phone</th>
-            <th>Role</th>
-            <th>Status</th>
-            <th>Actions</th>
+            <th>Телефон</th>
+            <th>Роль</th>
+            <th>Статус</th>
+            <th>Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -38,48 +41,93 @@
             <td>{{ user.email }}</td>
             <td>{{ user.phone || '-' }}</td>
             <td>
-              <span :class="getRoleBadgeClass(user.role)">{{ user.role }}</span>
+              <span :class="getRoleBadgeClass(user.role)">{{ getRoleText(user.role) }}</span>
             </td>
             <td>
               <span :class="user.isActive ? 'badge badge-success' : 'badge badge-warning'">
-                {{ user.isActive ? 'Active' : 'Inactive' }}
+                {{ user.isActive ? 'Активен' : 'Неактивен' }}
               </span>
             </td>
             <td>
               <button @click="editUser(user)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-right: 8px;">
-                Edit
+                Редактировать
               </button>
               <select v-model="user.role" @change="updateUserRole(user)" class="input" style="max-width: 150px; padding: 6px; display: inline-block;">
-                <option value="User">User</option>
-                <option value="Moderator">Moderator</option>
-                <option value="Admin">Admin</option>
+                <option value="User">Пользователь</option>
+                <option value="Moderator">Модератор</option>
+                <option value="Admin">Администратор</option>
               </select>
             </td>
           </tr>
           <tr v-if="filteredUsers.length === 0">
             <td colspan="6" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              No users found
+              Пользователи не найдены
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
+    <!-- Add User Modal -->
+    <div v-if="showAddModal" class="modal-overlay" @click="showAddModal = false">
+      <div class="modal" @click.stop>
+        <h3>Добавить пользователя</h3>
+        <form @submit.prevent="createUser">
+          <div class="form-group">
+            <label>Имя *</label>
+            <input v-model="addForm.firstName" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Фамилия *</label>
+            <input v-model="addForm.lastName" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Отчество</label>
+            <input v-model="addForm.patronymic" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Email *</label>
+            <input v-model="addForm.email" type="email" class="input" required />
+          </div>
+          <div class="form-group">
+            <label>Пароль *</label>
+            <input v-model="addForm.password" type="password" class="input" required minlength="6" />
+          </div>
+          <div class="form-group">
+            <label>Телефон</label>
+            <input v-model="addForm.phone" class="input" />
+          </div>
+          <div class="form-group">
+            <label>Роль *</label>
+            <select v-model="addForm.role" class="input" required>
+              <option value="User">Пользователь</option>
+              <option value="Moderator">Модератор</option>
+              <option value="Admin">Администратор</option>
+            </select>
+          </div>
+          <div class="modal-actions">
+            <button type="button" @click="showAddModal = false" class="btn btn-secondary">Отмена</button>
+            <button type="submit" class="btn btn-primary">Создать</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Edit User Modal -->
     <div v-if="showModal" class="modal-overlay" @click="showModal = false">
       <div class="modal" @click.stop>
-        <h3>Edit User</h3>
+        <h3>Редактировать пользователя</h3>
         <form @submit.prevent="saveUser">
           <div class="form-group">
-            <label>First Name</label>
+            <label>Имя</label>
             <input v-model="form.firstName" class="input" required />
           </div>
           <div class="form-group">
-            <label>Last Name</label>
+            <label>Фамилия</label>
             <input v-model="form.lastName" class="input" required />
           </div>
           <div class="form-group">
-            <label>Patronymic</label>
+            <label>Отчество</label>
             <input v-model="form.patronymic" class="input" />
           </div>
           <div class="form-group">
@@ -87,12 +135,12 @@
             <input v-model="form.email" type="email" class="input" required />
           </div>
           <div class="form-group">
-            <label>Phone</label>
+            <label>Телефон</label>
             <input v-model="form.phone" class="input" />
           </div>
           <div class="modal-actions">
-            <button type="button" @click="showModal = false" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" @click="showModal = false" class="btn btn-secondary">Отмена</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
           </div>
         </form>
       </div>
@@ -108,6 +156,7 @@ const users = ref([])
 const search = ref('')
 const roleFilter = ref('')
 const showModal = ref(false)
+const showAddModal = ref(false)
 const editingUser = ref(null)
 
 const form = ref({
@@ -116,6 +165,16 @@ const form = ref({
   patronymic: '',
   email: '',
   phone: ''
+})
+
+const addForm = ref({
+  firstName: '',
+  lastName: '',
+  patronymic: '',
+  email: '',
+  password: '',
+  phone: '',
+  role: 'User'
 })
 
 const filteredUsers = computed(() => {
@@ -163,28 +222,57 @@ function editUser(user) {
   showModal.value = true
 }
 
+async function createUser() {
+  try {
+    await api.post('/api/users', addForm.value)
+    showAddModal.value = false
+    addForm.value = {
+      firstName: '',
+      lastName: '',
+      patronymic: '',
+      email: '',
+      password: '',
+      phone: '',
+      role: 'User'
+    }
+    await loadUsers()
+    alert('Пользователь успешно создан')
+  } catch (error) {
+    console.error('Failed to create user:', error)
+    const errorMsg = error.response?.data?.message || 'Ошибка при создании пользователя'
+    alert(errorMsg)
+  }
+}
+
 async function saveUser() {
   try {
     await api.put(`/api/users/${editingUser.value.id}`, form.value)
     showModal.value = false
     editingUser.value = null
     await loadUsers()
-    alert('User updated successfully')
+    alert('Пользователь успешно обновлен')
   } catch (error) {
     console.error('Failed to save user:', error)
-    alert('Failed to save user')
+    alert('Ошибка при сохранении пользователя')
   }
 }
 
 async function updateUserRole(user) {
   try {
     await api.put(`/api/users/${user.id}/role`, { role: user.role })
-    alert('User role updated successfully')
+    alert('Роль пользователя успешно обновлена')
   } catch (error) {
     console.error('Failed to update user role:', error)
-    alert('Failed to update user role')
+    alert('Ошибка при обновлении роли')
     await loadUsers() // Reload to revert change
   }
+}
+
+function getRoleText(role) {
+  if (role === 'Admin') return 'Администратор'
+  if (role === 'Moderator') return 'Модератор'
+  if (role === 'User') return 'Пользователь'
+  return role
 }
 
 function getRoleBadgeClass(role) {
@@ -251,5 +339,18 @@ onMounted(() => {
   gap: 12px;
   justify-content: flex-end;
   margin-top: 24px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 14px;
 }
 </style>

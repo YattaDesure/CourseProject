@@ -1,9 +1,9 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>Apartments</h2>
+      <h2>Квартиры</h2>
       <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
-        + Add Apartment
+        + Добавить квартиру
       </button>
     </div>
 
@@ -11,31 +11,31 @@
       <input
         v-model="search"
         type="text"
-        placeholder="Search by number or entrance..."
+        placeholder="Поиск по номеру или подъезду..."
         class="input"
         style="max-width: 300px;"
       />
       <select v-model="statusFilter" class="input" style="max-width: 200px;">
-        <option value="">All Status</option>
-        <option value="Available">Available</option>
-        <option value="Occupied">Occupied</option>
+        <option value="">Все статусы</option>
+        <option value="Available">Свободна</option>
+        <option value="Occupied">Занята</option>
       </select>
     </div>
 
     <div class="card">
       <div v-if="loading" style="text-align: center; padding: 32px;">
-        Loading apartments...
+        Загрузка квартир...
       </div>
       <table v-else class="table">
         <thead>
           <tr>
-            <th>Number</th>
-            <th>Entrance</th>
-            <th>Floor</th>
-            <th>Area (m²)</th>
-            <th>Status</th>
-            <th>Owners</th>
-            <th v-if="authStore.isModerator">Actions</th>
+            <th>Номер</th>
+            <th>Подъезд</th>
+            <th>Этаж</th>
+            <th>Площадь (м²)</th>
+            <th>Статус</th>
+            <th>Владельцы</th>
+            <th v-if="authStore.isModerator">Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +45,7 @@
             <td>{{ apt.floor }}</td>
             <td>{{ parseFloat(apt.area).toFixed(2) }}</td>
             <td>
-              <span :class="getStatusBadgeClass(apt.status)">{{ apt.status }}</span>
+              <span :class="getStatusBadgeClass(apt.status)">{{ getStatusText(apt.status) }}</span>
             </td>
             <td>
               <span v-for="(owner, idx) in apt.owners" :key="idx">
@@ -55,13 +55,13 @@
             </td>
             <td v-if="authStore.isModerator">
               <button @click="editApartment(apt)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                Edit
+                Редактировать
               </button>
             </td>
           </tr>
           <tr v-if="apartments.length === 0 && !loading">
             <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              No apartments found
+              Квартиры не найдены
             </td>
           </tr>
         </tbody>
@@ -71,36 +71,36 @@
     <!-- Add/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="showModal = false">
       <div class="modal" @click.stop>
-        <h3>{{ editingApartment ? 'Edit' : 'Add' }} Apartment</h3>
+        <h3>{{ editingApartment ? 'Редактировать' : 'Добавить' }} квартиру</h3>
         <form @submit.prevent="saveApartment">
           <div class="form-group">
-            <label>Number</label>
+            <label>Номер</label>
             <input v-model="form.number" class="input" required />
           </div>
           <div class="form-group">
-            <label>Entrance</label>
+            <label>Подъезд</label>
             <input v-model="form.entrance" class="input" required />
           </div>
           <div class="form-group">
-            <label>Floor</label>
+            <label>Этаж</label>
             <input v-model.number="form.floor" type="number" class="input" required />
           </div>
           <div class="form-group">
-            <label>Area (m²)</label>
+            <label>Площадь (м²)</label>
             <input v-model.number="form.area" type="number" step="0.1" class="input" required />
           </div>
           <div class="form-group">
-            <label>Owner</label>
+            <label>Владелец</label>
             <select v-model.number="form.residentId" class="input">
-              <option :value="null">No Owner (Available)</option>
+              <option :value="null">Нет владельца (Свободна)</option>
               <option v-for="resident in residents" :key="resident.id" :value="resident.id">
                 {{ resident.firstName }} {{ resident.lastName }} ({{ resident.email }})
               </option>
             </select>
           </div>
           <div class="modal-actions">
-            <button type="button" @click="showModal = false" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" @click="showModal = false" class="btn btn-secondary">Отмена</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
           </div>
         </form>
       </div>
@@ -200,8 +200,14 @@ async function saveApartment() {
     await loadApartments()
   } catch (error) {
     console.error('Failed to save apartment:', error)
-    alert('Failed to save apartment')
+    alert('Ошибка при сохранении квартиры')
   }
+}
+
+function getStatusText(status) {
+  if (status === 'Occupied') return 'Занята'
+  if (status === 'Available') return 'Свободна'
+  return status
 }
 
 function getStatusBadgeClass(status) {

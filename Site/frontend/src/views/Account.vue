@@ -1,19 +1,19 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>My Account</h2>
+      <h2>Мой аккаунт</h2>
     </div>
 
     <div v-if="loading" style="text-align: center; padding: 48px;">
-      Loading...
+      Загрузка...
     </div>
 
     <div v-else-if="account" class="account-content">
       <div class="card" style="margin-bottom: 24px;">
-        <h3 style="margin-bottom: 16px;">Personal Information</h3>
+        <h3 style="margin-bottom: 16px;">Личная информация</h3>
         <div class="info-grid">
           <div>
-            <label>Name</label>
+            <label>Имя</label>
             <p>{{ account.firstName }} {{ account.lastName }} {{ account.patronymic || '' }}</p>
           </div>
           <div>
@@ -21,26 +21,26 @@
             <p>{{ account.email }}</p>
           </div>
           <div>
-            <label>Role</label>
-            <p><span :class="getRoleBadgeClass(account.role)">{{ account.role }}</span></p>
+            <label>Роль</label>
+            <p><span :class="getRoleBadgeClass(account.role)">{{ getRoleText(account.role) }}</span></p>
           </div>
           <div>
-            <label>Member Since</label>
-            <p>{{ new Date(account.createdAt).toLocaleDateString() }}</p>
+            <label>Участник с</label>
+            <p>{{ new Date(account.createdAt).toLocaleDateString('ru-RU') }}</p>
           </div>
         </div>
       </div>
 
       <div class="card" v-if="account.apartments && account.apartments.length > 0">
-        <h3 style="margin-bottom: 16px;">My Apartments</h3>
+        <h3 style="margin-bottom: 16px;">Мои квартиры</h3>
         <table class="table">
           <thead>
             <tr>
-              <th>Number</th>
-              <th>Entrance</th>
-              <th>Floor</th>
-              <th>Area (m²)</th>
-              <th>Status</th>
+              <th>Номер</th>
+              <th>Подъезд</th>
+              <th>Этаж</th>
+              <th>Площадь (м²)</th>
+              <th>Статус</th>
             </tr>
           </thead>
           <tbody>
@@ -50,7 +50,7 @@
               <td>{{ apt.floor }}</td>
               <td>{{ parseFloat(apt.area).toFixed(2) }}</td>
               <td>
-                <span :class="getStatusBadgeClass(apt.status)">{{ apt.status }}</span>
+                <span :class="getStatusBadgeClass(apt.status)">{{ getStatusText(apt.status) }}</span>
               </td>
             </tr>
           </tbody>
@@ -58,13 +58,13 @@
       </div>
 
       <div class="card" v-if="account.parkingSpaces && account.parkingSpaces.length > 0">
-        <h3 style="margin-bottom: 16px;">My Parking Spaces</h3>
+        <h3 style="margin-bottom: 16px;">Мои парковочные места</h3>
         <table class="table">
           <thead>
             <tr>
-              <th>Slot Number</th>
-              <th>Area (m²)</th>
-              <th>Status</th>
+              <th>Номер места</th>
+              <th>Площадь (м²)</th>
+              <th>Статус</th>
             </tr>
           </thead>
           <tbody>
@@ -72,7 +72,7 @@
               <td>{{ ps.slotNumber }}</td>
               <td>{{ parseFloat(ps.area).toFixed(2) }}</td>
               <td>
-                <span :class="getStatusBadgeClass(ps.status)">{{ ps.status }}</span>
+                <span :class="getStatusBadgeClass(ps.status)">{{ getStatusText(ps.status) }}</span>
               </td>
             </tr>
           </tbody>
@@ -80,13 +80,13 @@
       </div>
 
       <div class="card" v-if="account.storageRooms && account.storageRooms.length > 0">
-        <h3 style="margin-bottom: 16px;">My Storage Rooms</h3>
+        <h3 style="margin-bottom: 16px;">Мои кладовые</h3>
         <table class="table">
           <thead>
             <tr>
-              <th>Label</th>
-              <th>Area (m²)</th>
-              <th>Status</th>
+              <th>Номер</th>
+              <th>Площадь (м²)</th>
+              <th>Статус</th>
             </tr>
           </thead>
           <tbody>
@@ -94,7 +94,7 @@
               <td>{{ sr.label }}</td>
               <td>{{ parseFloat(sr.area).toFixed(2) }}</td>
               <td>
-                <span :class="getStatusBadgeClass(sr.status)">{{ sr.status }}</span>
+                <span :class="getStatusBadgeClass(sr.status)">{{ getStatusText(sr.status) }}</span>
               </td>
             </tr>
           </tbody>
@@ -103,7 +103,7 @@
 
       <div v-if="!account.apartments?.length && !account.parkingSpaces?.length && !account.storageRooms?.length" class="card">
         <p style="text-align: center; color: var(--text-muted); padding: 32px;">
-          You don't have any properties assigned yet.
+          У вас пока нет назначенной недвижимости.
         </p>
       </div>
     </div>
@@ -133,6 +133,20 @@ async function loadAccount() {
   } finally {
     loading.value = false
   }
+}
+
+function getStatusText(status) {
+  if (status === 'Occupied') return 'Занята'
+  if (status === 'Available') return 'Свободна'
+  if (status === 'Vacant') return 'Свободна'
+  return status
+}
+
+function getRoleText(role) {
+  if (role === 'Admin') return 'Администратор'
+  if (role === 'Moderator') return 'Модератор'
+  if (role === 'User') return 'Пользователь'
+  return role
 }
 
 function getStatusBadgeClass(status) {

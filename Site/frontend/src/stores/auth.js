@@ -24,7 +24,7 @@ export const useAuthStore = defineStore('auth', () => {
       api.defaults.headers.common['Authorization'] = `Bearer ${token.value}`
       return { success: true }
     } catch (error) {
-      return { success: false, error: error.response?.data?.message || 'Login failed' }
+      return { success: false, error: error.response?.data?.message || 'Ошибка входа' }
     }
   }
 

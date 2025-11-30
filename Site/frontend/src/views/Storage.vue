@@ -1,9 +1,9 @@
 <template>
   <div class="page">
     <div class="page-header">
-      <h2>Storage Rooms</h2>
+      <h2>Кладовые</h2>
       <button v-if="authStore.isModerator" @click="showModal = true" class="btn btn-primary">
-        + Add Storage Room
+        + Добавить кладовую
       </button>
     </div>
 
@@ -11,14 +11,14 @@
       <input
         v-model="search"
         type="text"
-        placeholder="Search by label..."
+        placeholder="Поиск по номеру..."
         class="input"
         style="max-width: 300px;"
       />
       <select v-model="statusFilter" class="input" style="max-width: 200px;">
-        <option value="">All Status</option>
-        <option value="Available">Available</option>
-        <option value="Occupied">Occupied</option>
+        <option value="">Все статусы</option>
+        <option value="Available">Свободна</option>
+        <option value="Occupied">Занята</option>
       </select>
     </div>
 
@@ -26,11 +26,11 @@
       <table class="table">
         <thead>
           <tr>
-            <th>Label</th>
-            <th>Area (m²)</th>
-            <th>Status</th>
-            <th>Assigned To</th>
-            <th v-if="authStore.isModerator">Actions</th>
+            <th>Номер</th>
+            <th>Площадь (м²)</th>
+            <th>Статус</th>
+            <th>Назначено</th>
+            <th v-if="authStore.isModerator">Действия</th>
           </tr>
         </thead>
         <tbody>
@@ -38,7 +38,7 @@
             <td>{{ room.label }}</td>
             <td>{{ parseFloat(room.area).toFixed(2) }}</td>
             <td>
-              <span :class="getStatusBadgeClass(room.status)">{{ room.status }}</span>
+              <span :class="getStatusBadgeClass(room.status)">{{ getStatusText(room.status) }}</span>
             </td>
             <td>
               <span v-for="(user, idx) in room.users" :key="idx">
@@ -48,13 +48,13 @@
             </td>
             <td v-if="authStore.isModerator">
               <button @click="editRoom(room)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                Edit
+                Редактировать
               </button>
             </td>
           </tr>
           <tr v-if="filteredRooms.length === 0">
             <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              No storage rooms found
+              Кладовые не найдены
             </td>
           </tr>
         </tbody>
@@ -64,32 +64,28 @@
     <!-- Add/Edit Modal -->
     <div v-if="showModal" class="modal-overlay" @click="showModal = false">
       <div class="modal" @click.stop>
-        <h3>{{ editingRoom ? 'Edit' : 'Add' }} Storage Room</h3>
+        <h3>{{ editingRoom ? 'Редактировать' : 'Добавить' }} кладовую</h3>
         <form @submit.prevent="saveRoom">
           <div class="form-group">
-            <label>Label</label>
+            <label>Номер</label>
             <input v-model="form.label" class="input" required />
           </div>
           <div class="form-group">
-            <label>Level</label>
-            <input v-model="form.level" class="input" required />
-          </div>
-          <div class="form-group">
-            <label>Area (m²)</label>
+            <label>Площадь (м²)</label>
             <input v-model.number="form.area" type="number" step="0.1" class="input" required />
           </div>
           <div class="form-group">
-            <label>Owner</label>
+            <label>Владелец</label>
             <select v-model.number="form.ownerId" class="input">
-              <option :value="null">No Owner (Available)</option>
+              <option :value="null">Нет владельца (Свободна)</option>
               <option v-for="resident in residents" :key="resident.id" :value="resident.id">
                 {{ resident.firstName }} {{ resident.lastName }} ({{ resident.email }})
               </option>
             </select>
           </div>
           <div class="modal-actions">
-            <button type="button" @click="showModal = false" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" @click="showModal = false" class="btn btn-secondary">Отмена</button>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
           </div>
         </form>
       </div>
@@ -178,8 +174,14 @@ async function saveRoom() {
     await loadRooms()
   } catch (error) {
     console.error('Failed to save storage room:', error)
-    alert('Failed to save storage room')
+    alert('Ошибка при сохранении кладовой')
   }
+}
+
+function getStatusText(status) {
+  if (status === 'Occupied') return 'Занята'
+  if (status === 'Available') return 'Свободна'
+  return status
 }
 
 function getStatusBadgeClass(status) {

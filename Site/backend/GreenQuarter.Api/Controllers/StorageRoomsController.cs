@@ -50,8 +50,11 @@ public class StorageRoomsController : ControllerBase
                 LEFT JOIN Residents r ON s.OwnerId = r.ResidentId
                 WHERE 1=1";
 
-            // For now, show all storage rooms to all users
-            // TODO: Implement proper filtering when data is linked correctly
+            // Users can only see Available storage rooms (no owner)
+            if (userRole == "User")
+            {
+                sql += " AND s.OwnerId IS NULL";
+            }
 
             if (!string.IsNullOrEmpty(search))
             {

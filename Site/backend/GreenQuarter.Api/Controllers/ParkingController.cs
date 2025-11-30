@@ -50,8 +50,11 @@ public class ParkingController : ControllerBase
                 LEFT JOIN Residents r ON p.OwnerId = r.ResidentId
                 WHERE 1=1";
 
-            // For now, show all parking spaces to all users
-            // TODO: Implement proper filtering when data is linked correctly
+            // Users can only see Available parking spaces (no owner)
+            if (userRole == "User")
+            {
+                sql += " AND p.OwnerId IS NULL";
+            }
 
             if (!string.IsNullOrEmpty(search))
             {
