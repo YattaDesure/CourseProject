@@ -17,7 +17,9 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = {
         email: response.data.email,
         role: response.data.role,
-        fullName: response.data.fullName
+        fullName: response.data.fullName,
+        firstName: response.data.firstName || '',
+        lastName: response.data.lastName || ''
       }
       localStorage.setItem('token', token.value)
       localStorage.setItem('user', JSON.stringify(user.value))

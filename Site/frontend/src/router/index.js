@@ -15,7 +15,8 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/apartments'
+        name: 'Dashboard',
+        component: () => import('../views/Dashboard.vue')
       },
       {
         path: 'apartments',
@@ -62,7 +63,7 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.requiresAdmin && userRole !== 'Admin') {
     next('/apartments')
   } else if (to.path === '/login' && isAuthenticated) {
-    next('/apartments')
+    next('/')
   } else {
     next()
   }

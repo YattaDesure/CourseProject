@@ -2,8 +2,11 @@
   <div class="layout">
     <header class="header">
       <div class="header-content">
-        <h1 class="logo">🏠 Зеленый Квартал</h1>
+        <router-link to="/" class="logo-link">
+          <h1 class="logo">🏠 Зеленый Квартал</h1>
+        </router-link>
         <nav class="nav">
+          <router-link to="/" class="nav-link">Главная</router-link>
           <router-link to="/apartments" class="nav-link">Квартиры</router-link>
           <router-link to="/parking" class="nav-link">Парковка</router-link>
           <router-link to="/storage" class="nav-link">Кладовые</router-link>
@@ -79,10 +82,23 @@ function handleLogout() {
   height: 64px;
 }
 
+.logo-link {
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+}
+
 .logo {
   font-size: 20px;
   color: var(--primary);
   font-weight: 700;
+  margin: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.logo-link:hover .logo {
+  opacity: 0.8;
 }
 
 .nav {

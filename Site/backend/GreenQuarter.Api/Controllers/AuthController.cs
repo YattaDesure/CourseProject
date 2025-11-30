@@ -62,7 +62,9 @@ public class AuthController : ControllerBase
                         Token = token,
                         Email = user.Email ?? string.Empty,
                         Role = user.Role,
-                        FullName = fullName
+                        FullName = fullName,
+                        FirstName = user.FirstName ?? string.Empty,
+                        LastName = user.LastName ?? string.Empty
                     });
                 }
             }
@@ -148,7 +150,9 @@ public class AuthController : ControllerBase
                     Token = token,
                     Email = resident.Email ?? string.Empty,
                     Role = role,
-                    FullName = fullName
+                    FullName = fullName,
+                    FirstName = resident.FirstName ?? string.Empty,
+                    LastName = resident.LastName ?? string.Empty
                 });
             }
 
@@ -218,7 +222,9 @@ public class AuthController : ControllerBase
             Token = token,
             Email = user.Email ?? string.Empty,
             Role = user.Role,
-            FullName = fullName
+            FullName = fullName,
+            FirstName = user.FirstName ?? string.Empty,
+            LastName = user.LastName ?? string.Empty
         });
     }
 
