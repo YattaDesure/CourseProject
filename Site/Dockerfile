@@ -7,10 +7,15 @@ WORKDIR /app
 
 # Копируем файлы из папки frontend
 COPY frontend/package*.json ./
-RUN npm ci
+COPY frontend/package-lock.json* ./
+
+# Устанавливаем зависимости
+RUN npm ci || npm install
 
 # Копируем остальные файлы frontend
 COPY frontend/ .
+
+# Собираем проект
 RUN npm run build
 
 # Production stage with Nginx

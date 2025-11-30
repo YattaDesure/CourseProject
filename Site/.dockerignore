@@ -1,0 +1,12 @@
+# Игнорируем все, кроме frontend
+*
+!frontend/
+!Dockerfile
+!.dockerignore
+
+# Игнорируем ненужные файлы из frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.git/
+frontend/.vite/
+
