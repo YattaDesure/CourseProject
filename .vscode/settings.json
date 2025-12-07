@@ -17,6 +17,7 @@
             "ssh": "Enabled",
             "previewLimit": 50,
             "sshOptions": {
+                //настройки для подключения
                 "port": 1433,
                 "host": "192.168.0.113",
                 "username": "Eduardo", 
