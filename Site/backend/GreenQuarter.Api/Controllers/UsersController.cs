@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Security.Claims;
 using System.Text;
 using GreenQuarter.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -233,6 +234,17 @@ public class UsersController : ControllerBase
         if (!int.TryParse(id, out var residentId))
         {
             return BadRequest();
+        }
+
+        // Проверка: администратор не может убрать себе роль администратора
+        var currentUserId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
+                           User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrEmpty(currentUserId) && int.TryParse(currentUserId, out var currentUserIdInt))
+        {
+            if (currentUserIdInt == residentId && request.Role != "Admin")
+            {
+                return BadRequest(new { message = "Вы не можете убрать себе роль администратора" });
+            }
         }
 
         // Map English role to Russian role ID

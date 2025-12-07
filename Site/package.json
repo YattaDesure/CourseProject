@@ -1,5 +1,0 @@
-{
-  "scripts": {
-    "dev": "php -S localhost:8000 & live-server --proxy=localhost:8000 --wait=1000"
-  }
-}

@@ -60,7 +60,14 @@
               <button @click="editUser(user)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px; margin-right: 8px;">
                 Редактировать
               </button>
-              <select v-model="user.role" @change="updateUserRole(user)" class="input" style="max-width: 150px; padding: 6px; display: inline-block;">
+              <select 
+                v-model="user.role" 
+                @change="updateUserRole(user)" 
+                class="input" 
+                style="max-width: 150px; padding: 6px; display: inline-block;"
+                :disabled="user.email === authStore.user?.email && user.role === 'Admin'"
+                :title="user.email === authStore.user?.email && user.role === 'Admin' ? 'Вы не можете убрать себе роль администратора' : ''"
+              >
                 <option value="User">Пользователь</option>
                 <option value="Moderator">Модератор</option>
                 <option value="Admin">Администратор</option>
@@ -159,6 +166,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
+import { useAuthStore } from '../stores/auth'
+
+const authStore = useAuthStore()
 
 const users = ref([])
 const search = ref('')
@@ -266,12 +276,20 @@ async function saveUser() {
 }
 
 async function updateUserRole(user) {
+  // Проверка на фронтенде: администратор не может убрать себе роль
+  if (user.email === authStore.user?.email && user.role !== 'Admin') {
+    alert('Вы не можете убрать себе роль администратора')
+    await loadUsers() // Reload to revert change
+    return
+  }
+
   try {
     await api.put(`/api/users/${user.id}/role`, { role: user.role })
     alert('Роль пользователя успешно обновлена')
   } catch (error) {
     console.error('Failed to update user role:', error)
-    alert('Ошибка при обновлении роли')
+    const errorMsg = error.response?.data?.message || 'Ошибка при обновлении роли'
+    alert(errorMsg)
     await loadUsers() // Reload to revert change
   }
 }

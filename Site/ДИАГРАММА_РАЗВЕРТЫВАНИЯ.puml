@@ -1,0 +1,69 @@
+@startuml Диаграмма развертывания
+!theme plain
+skinparam componentStyle rectangle
+
+title Диаграмма развертывания системы "Зеленый Квартал"
+
+node "Клиентское устройство" {
+  component [Браузер] as Browser
+}
+
+node "Docker Host" {
+  node "Docker Network: greenquarter-network" {
+    node "Frontend Container" {
+      component [Nginx\nПорт: 80\nСтатические файлы] as Nginx
+      component [Vue.js SPA] as Vue
+    }
+    
+    node "Backend Container" {
+      component [ASP.NET Core API\nПорт: 5001\n.NET 9.0] as API
+      component [Controllers] as Controllers
+      component [JWT Auth] as Auth
+      component [Entity Framework] as EF
+    }
+  }
+  
+  node "Database Container" {
+    database "SQL Server 2025\nПорт: 1433\nБаза: Cursovaya" as DB {
+      entity "Residents" as Residents
+      entity "Apartments" as Apartments
+      entity "ParkingRooms" as Parking
+      entity "StorageRooms" as Storage
+    }
+  }
+}
+
+Browser --> Nginx : HTTP :80
+Nginx --> Vue : Статические файлы
+Nginx --> API : Proxy /api/*
+API --> Controllers : Routing
+Controllers --> Auth : Authentication
+Controllers --> EF : Data Access
+EF --> DB : SQL Connection
+DB --> Residents
+DB --> Apartments
+DB --> Parking
+DB --> Storage
+
+note right of Nginx
+  - Проксирует /api/* к Backend
+  - Отдает статические файлы Vue.js
+  - Порт: 80
+end note
+
+note right of API
+  - RESTful API
+  - JWT Authentication
+  - Entity Framework Core
+  - Порт: 5001
+end note
+
+note right of DB
+  - Microsoft SQL Server 2025
+  - База данных: Cursovaya
+  - Порт: 1433
+  - Аутентификация: SQL Server Auth
+end note
+
+@enduml
+

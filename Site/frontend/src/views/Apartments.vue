@@ -3,6 +3,10 @@
     <div class="page-header">
       <h2>Квартиры</h2>
       <div style="display: flex; gap: 8px;">
+        <label v-if="authStore.isModerator" class="btn btn-secondary" style="padding: 8px 16px; cursor: pointer; margin: 0;">
+          📥 Импорт
+          <input type="file" @change="importFromExcel" accept=".xlsx,.xls" style="display: none;" />
+        </label>
         <button v-if="authStore.isModerator" @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
           📊 Excel
         </button>
@@ -259,6 +263,37 @@ async function exportToCsv() {
   } catch (error) {
     console.error('Failed to export to CSV:', error)
     alert('Ошибка при экспорте в CSV')
+  }
+}
+
+async function importFromExcel(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+    alert('Поддерживаются только файлы Excel (.xlsx, .xls)')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', file)
+
+  try {
+    const response = await api.post('/api/apartments/import/excel', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    
+    alert(response.data.message || 'Импорт завершен успешно')
+    await loadApartments()
+  } catch (error) {
+    console.error('Failed to import:', error)
+    const errorMsg = error.response?.data?.message || 'Ошибка при импорте файла'
+    alert(errorMsg)
+  } finally {
+    // Сброс input
+    event.target.value = ''
   }
 }
 
