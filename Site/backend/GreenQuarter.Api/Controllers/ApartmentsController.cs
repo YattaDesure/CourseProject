@@ -168,10 +168,10 @@ public class ApartmentsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public async Task<IActionResult> CreateApartment([FromBody] dynamic apartment)
+    public Task<IActionResult> CreateApartment([FromBody] dynamic apartment)
     {
         // Implementation for creating apartment in existing table
-        return BadRequest(new { message = "Create functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
     }
 
     [HttpPut("{id}")]
@@ -233,9 +233,9 @@ public class ApartmentsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteApartment(int id)
+    public Task<IActionResult> DeleteApartment(int id)
     {
-        return BadRequest(new { message = "Delete functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
     }
 
     [HttpGet("export/excel")]
@@ -512,7 +512,10 @@ public class ApartmentsController : ControllerBase
                                     SET Floor = @floor, Area = @area, Entrance = @entrance, ResidentId = @residentId
                                     WHERE Number = @number";
                                 
-                                updateCommand.Parameters.Add(checkCommand.Parameters[0].Clone());
+                                var numberParamUpdate = updateCommand.CreateParameter();
+                                numberParamUpdate.ParameterName = "@number";
+                                numberParamUpdate.Value = number;
+                                updateCommand.Parameters.Add(numberParamUpdate);
                                 
                                 var floorParam = updateCommand.CreateParameter();
                                 floorParam.ParameterName = "@floor";

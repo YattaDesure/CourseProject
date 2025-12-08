@@ -159,9 +159,9 @@ public class StorageRoomsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public async Task<IActionResult> CreateStorageRoom([FromBody] dynamic storageRoom)
+    public Task<IActionResult> CreateStorageRoom([FromBody] dynamic storageRoom)
     {
-        return BadRequest(new { message = "Create functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
     }
 
     [HttpPut("{id}")]
@@ -211,9 +211,9 @@ public class StorageRoomsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteStorageRoom(int id)
+    public Task<IActionResult> DeleteStorageRoom(int id)
     {
-        return BadRequest(new { message = "Delete functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
     }
 
     [HttpGet("export/excel")]
@@ -466,7 +466,10 @@ public class StorageRoomsController : ControllerBase
                                     SET Area = @area, OwnerId = @ownerId
                                     WHERE Number = @number";
                                 
-                                updateCommand.Parameters.Add(checkCommand.Parameters[0].Clone());
+                                var numberParamUpdate = updateCommand.CreateParameter();
+                                numberParamUpdate.ParameterName = "@number";
+                                numberParamUpdate.Value = number;
+                                updateCommand.Parameters.Add(numberParamUpdate);
                                 
                                 var areaParam = updateCommand.CreateParameter();
                                 areaParam.ParameterName = "@area";

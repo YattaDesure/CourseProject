@@ -165,9 +165,9 @@ public class ParkingController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public async Task<IActionResult> CreateParkingSpace([FromBody] dynamic space)
+    public Task<IActionResult> CreateParkingSpace([FromBody] dynamic space)
     {
-        return BadRequest(new { message = "Create functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
     }
 
     [HttpPut("{id}")]
@@ -217,9 +217,9 @@ public class ParkingController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteParkingSpace(int id)
+    public Task<IActionResult> DeleteParkingSpace(int id)
     {
-        return BadRequest(new { message = "Delete functionality requires database schema update" });
+        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
     }
 
     [HttpGet("export/excel")]
@@ -472,7 +472,10 @@ public class ParkingController : ControllerBase
                                     SET Area = @area, OwnerId = @ownerId
                                     WHERE Number = @number";
                                 
-                                updateCommand.Parameters.Add(checkCommand.Parameters[0].Clone());
+                                var numberParamUpdate = updateCommand.CreateParameter();
+                                numberParamUpdate.ParameterName = "@number";
+                                numberParamUpdate.Value = number;
+                                updateCommand.Parameters.Add(numberParamUpdate);
                                 
                                 var areaParam = updateCommand.CreateParameter();
                                 areaParam.ParameterName = "@area";
