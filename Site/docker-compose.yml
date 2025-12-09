@@ -56,8 +56,6 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
-      db-init:
-        condition: service_completed_successfully
     networks:
       - greenquarter-network
     restart: unless-stopped
