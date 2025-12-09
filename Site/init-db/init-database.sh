@@ -65,14 +65,24 @@ if [ -z "$DB_EXISTS" ]; then
                     TABLE_CHECK=$(/opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C \
                         -d Cursovaya -Q "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Residents'" -h -1 -W 2>/dev/null | grep -E "^[[:space:]]*1[[:space:]]*$" || true)
                     if [ -n "$TABLE_CHECK" ]; then
-                        # Финальная проверка - можем ли мы выполнить запрос к таблице
-                        sleep 1
-                        DATA_CHECK=$(/opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C \
-                            -d Cursovaya -Q "SELECT COUNT(*) FROM Residents" -h -1 -W 2>/dev/null | grep -E "^[[:space:]]*[0-9]+[[:space:]]*$" || true)
-                        if [ -n "$DATA_CHECK" ]; then
-                            echo "✅ База данных Cursovaya восстановлена, таблицы готовы, данные доступны!"
-                            DB_READY=1
-                            break
+                        # Проверяем таблицы Identity (AspNetUsers, AspNetRoles и т.д.)
+                        IDENTITY_TABLES=$(/opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C \
+                            -d Cursovaya -Q "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE 'AspNet%'" -h -1 -W 2>/dev/null | grep -E "^[[:space:]]*[0-9]+[[:space:]]*$" || true)
+                        if [ -n "$IDENTITY_TABLES" ] && [ "$IDENTITY_TABLES" -gt "0" ]; then
+                            # Финальная проверка - можем ли мы выполнить запрос к таблице
+                            sleep 1
+                            DATA_CHECK=$(/opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C \
+                                -d Cursovaya -Q "SELECT COUNT(*) FROM Residents" -h -1 -W 2>/dev/null | grep -E "^[[:space:]]*[0-9]+[[:space:]]*$" || true)
+                            if [ -n "$DATA_CHECK" ]; then
+                                # Проверяем AspNetUsers
+                                ASPNET_CHECK=$(/opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C \
+                                    -d Cursovaya -Q "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AspNetUsers'" -h -1 -W 2>/dev/null | grep -E "^[[:space:]]*1[[:space:]]*$" || true)
+                                if [ -n "$ASPNET_CHECK" ]; then
+                                    echo "✅ База данных Cursovaya восстановлена, все таблицы готовы, данные доступны!"
+                                    DB_READY=1
+                                    break
+                                fi
+                            fi
                         fi
                     fi
                 fi
