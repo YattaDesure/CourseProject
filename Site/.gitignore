@@ -22,6 +22,7 @@ Thumbs.db
 .env
 appsettings.Development.json
 
-# Database backups
+# Database backups (except init-db backup)
 *.bak
+!init-db/Cursovaya.bak
 
