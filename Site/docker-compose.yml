@@ -11,6 +11,7 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
       - ./init-db:/backup
+      - ./init-db:/scripts
     networks:
       - greenquarter-network
     restart: unless-stopped
@@ -46,7 +47,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://0.0.0.0:5001
-      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=Cursovaya;User Id=SA;Password=22332123Yaz;TrustServerCertificate=True;
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=Cursovaya;User Id=SA;Password=22332123Yaz;TrustServerCertificate=True;Connection Timeout=60;
       - JWT__Key=YourSuperSecretKeyThatIsAtLeast32CharactersLong!
       - JWT__Issuer=GreenQuarter
       - JWT__Audience=GreenQuarterUsers
@@ -56,9 +57,17 @@ services:
     depends_on:
       sqlserver:
         condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
     networks:
       - greenquarter-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/swagger/index.html"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
 
   # Frontend
   frontend:
