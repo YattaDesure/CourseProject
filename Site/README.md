@@ -55,7 +55,11 @@ Frontend будет доступен на: `http://localhost:5173`
 ## 🔐 Вход в систему
 
 - Email: `edikyazikov1@gmail.com`
-- Password: `12345678`
+- Password: `123456`
+
+Или используйте другие тестовые аккаунты:
+- Email: `motylkova@gmail.com`, Password: `admin123` (Admin)
+- Email: `annayazykova@gmail.com`, Password: `moderator123` (Moderator)
 
 ## 📁 Структура проекта
 

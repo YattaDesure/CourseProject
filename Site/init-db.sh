@@ -23,18 +23,14 @@ if [ -z "$DB_EXISTS" ]; then
     if [ -f "./init-db/Cursovaya.bak" ]; then
         echo "📥 Найден файл резервной копии"
         
-        # Копируем файл в контейнер
-        echo "📋 Копирование файла в SQL Server контейнер..."
-        docker cp ./init-db/Cursovaya.bak greenquarter-sqlserver:/var/opt/mssql/backup/Cursovaya.bak
-        
-        # Восстанавливаем базу данных
+        # Восстанавливаем базу данных из смонтированного файла
         echo "🔄 Восстановление базы данных..."
         docker exec greenquarter-sqlserver /opt/mssql-tools18/bin/sqlcmd \
             -S localhost \
             -U SA \
             -P "22332123Yaz" \
             -C \
-            -Q "RESTORE DATABASE Cursovaya FROM DISK = '/var/opt/mssql/backup/Cursovaya.bak' WITH REPLACE"
+            -Q "RESTORE DATABASE Cursovaya FROM DISK = '/backup/Cursovaya.bak' WITH REPLACE"
         
         if [ $? -eq 0 ]; then
             echo "✅ База данных Cursovaya успешно восстановлена!"
