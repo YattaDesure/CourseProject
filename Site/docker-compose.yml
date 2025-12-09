@@ -61,8 +61,8 @@ services:
         condition: service_completed_successfully
     entrypoint: >
       /bin/sh -c "
-      echo '⏳ Ожидание готовности базы данных Cursovaya (30 секунд)...';
-      sleep 30;
+      echo '⏳ Ожидание готовности базы данных Cursovaya (60 секунд)...';
+      sleep 60;
       echo '🚀 Запуск backend...';
       dotnet GreenQuarter.Api.dll
       "
