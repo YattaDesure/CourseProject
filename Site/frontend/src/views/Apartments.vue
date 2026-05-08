@@ -27,57 +27,73 @@
         class="input"
         style="max-width: 300px;"
       />
+      <input
+        v-model="ownerSearch"
+        type="text"
+        placeholder="Поиск по владельцу (имя/email)..."
+        class="input"
+        style="max-width: 280px;"
+      />
+      <select v-model="entranceFilter" class="input" style="max-width: 200px;">
+        <option value="">Все подъезды</option>
+        <option v-for="e in entranceOptions" :key="e" :value="e">{{ e }}</option>
+      </select>
       <select v-model="statusFilter" class="input" style="max-width: 200px;">
         <option value="">Все статусы</option>
         <option value="Available">Свободна</option>
         <option value="Occupied">Занята</option>
       </select>
+      <button class="btn btn-secondary" type="button" @click="toggleNumberSort" style="padding: 8px 16px;">
+        Номер {{ numberSortDir === 'asc' ? '▲' : '▼' }}
+      </button>
     </div>
 
     <div class="card">
       <div v-if="loading" style="text-align: center; padding: 32px;">
         Загрузка квартир...
       </div>
-      <table v-else class="table">
-        <thead>
-          <tr>
-            <th>Номер</th>
-            <th>Подъезд</th>
-            <th>Этаж</th>
-            <th>Площадь (м²)</th>
-            <th>Статус</th>
-            <th>Владельцы</th>
-            <th v-if="authStore.isModerator">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="apt in filteredApartments" :key="apt.id">
-            <td>{{ apt.number }}</td>
-            <td>{{ apt.entrance }}</td>
-            <td>{{ apt.floor }}</td>
-            <td>{{ parseFloat(apt.area).toFixed(2) }}</td>
-            <td>
-              <span :class="getStatusBadgeClass(apt.status)">{{ getStatusText(apt.status) }}</span>
-            </td>
-            <td>
-              <span v-for="(owner, idx) in apt.owners" :key="idx">
-                {{ owner.firstName }} {{ owner.lastName }}{{ idx < apt.owners.length - 1 ? ', ' : '' }}
-              </span>
-              <span v-if="apt.owners.length === 0">-</span>
-            </td>
-            <td v-if="authStore.isModerator">
-              <button @click="editApartment(apt)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                Редактировать
-              </button>
-            </td>
-          </tr>
-          <tr v-if="apartments.length === 0 && !loading">
-            <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              Квартиры не найдены
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Номер</th>
+              <th>Подъезд</th>
+              <th>Этаж</th>
+              <th>Площадь (м²)</th>
+              <th>Статус</th>
+              <th>Владельцы</th>
+              <th v-if="authStore.isModerator">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="apt in filteredApartments" :key="apt.id">
+              <td>{{ apt.number }}</td>
+              <td>{{ apt.entrance }}</td>
+              <td>{{ apt.floor }}</td>
+              <td>{{ parseFloat(apt.area).toFixed(2) }}</td>
+              <td>
+                <span :class="getStatusBadgeClass(apt.status)">{{ getStatusText(apt.status) }}</span>
+              </td>
+              <td>
+                <span v-for="(owner, idx) in apt.owners" :key="idx">
+                  {{ owner.firstName }} {{ owner.lastName }}{{ idx < apt.owners.length - 1 ? ', ' : '' }}
+                </span>
+                <span v-if="apt.owners.length === 0">-</span>
+              </td>
+              <td v-if="authStore.isModerator">
+                <button @click="editApartment(apt)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                  Редактировать
+                </button>
+              </td>
+            </tr>
+            <tr v-if="filteredApartments.length === 0 && !loading">
+              <td colspan="7" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                Квартиры не найдены
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Add/Edit Modal -->
@@ -124,13 +140,17 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
+import { compareNumberLike, toggleDir } from '../utils/sortNumber'
 
 const authStore = useAuthStore()
 const apartments = ref([])
 const residents = ref([])
 const loading = ref(false)
 const search = ref('')
+const ownerSearch = ref('')
 const statusFilter = ref('')
+const entranceFilter = ref('')
+const numberSortDir = ref('asc') // asc | desc
 const showModal = ref(false)
 const editingApartment = ref(null)
 
@@ -154,11 +174,44 @@ const filteredApartments = computed(() => {
     )
   }
 
+  if (ownerSearch.value) {
+    const q = ownerSearch.value.toLowerCase()
+    result = result.filter(a => {
+      const owners = a.owners || []
+      return owners.some(o =>
+        (o.firstName && o.firstName.toLowerCase().includes(q)) ||
+        (o.lastName && o.lastName.toLowerCase().includes(q)) ||
+        (o.email && o.email.toLowerCase().includes(q))
+      )
+    })
+  }
+
+  if (entranceFilter.value) {
+    result = result.filter(a => (a.entrance || '') === entranceFilter.value)
+  }
+
   if (statusFilter.value) {
     result = result.filter(a => a.status === statusFilter.value)
   }
 
-  return result
+  const sorted = [...result]
+  sorted.sort((a, b) => {
+    return compareNumberLike(a.number, b.number, numberSortDir.value)
+  })
+
+  return sorted
+})
+
+function toggleNumberSort() {
+  numberSortDir.value = toggleDir(numberSortDir.value)
+}
+
+const entranceOptions = computed(() => {
+  const set = new Set()
+  for (const a of apartments.value) {
+    if (a.entrance) set.add(String(a.entrance))
+  }
+  return Array.from(set).sort((x, y) => x.localeCompare(y))
 })
 
 async function loadApartments() {

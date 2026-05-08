@@ -29,10 +29,22 @@
         <option value="Moderator">Модератор</option>
         <option value="Admin">Администратор</option>
       </select>
+      <select v-model="statusFilter" class="input" style="max-width: 200px;">
+        <option value="">Все статусы</option>
+        <option value="active">Активен</option>
+        <option value="inactive">Неактивен</option>
+      </select>
+      <select v-model="sortBy" class="input" style="max-width: 220px;">
+        <option value="nameAsc">Сортировка: имя ↑</option>
+        <option value="nameDesc">Сортировка: имя ↓</option>
+        <option value="emailAsc">Сортировка: email ↑</option>
+        <option value="roleAsc">Сортировка: роль ↑</option>
+      </select>
     </div>
 
     <div class="card">
-      <table class="table">
+      <div class="table-wrap">
+        <table class="table">
         <thead>
           <tr>
             <th>Имя</th>
@@ -80,7 +92,8 @@
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
 
     <!-- Add User Modal -->
@@ -173,6 +186,8 @@ const authStore = useAuthStore()
 const users = ref([])
 const search = ref('')
 const roleFilter = ref('')
+const statusFilter = ref('')
+const sortBy = ref('nameAsc')
 const showModal = ref(false)
 const showAddModal = ref(false)
 const editingUser = ref(null)
@@ -211,7 +226,23 @@ const filteredUsers = computed(() => {
     result = result.filter(u => u.role === roleFilter.value)
   }
 
-  return result
+  if (statusFilter.value) {
+    const active = statusFilter.value === 'active'
+    result = result.filter(u => !!u.isActive === active)
+  }
+
+  const sorted = [...result]
+  const roleRank = (r) => (r === 'Admin' ? 1 : r === 'Moderator' ? 2 : 3)
+  sorted.sort((a, b) => {
+    const an = `${a.lastName || ''} ${a.firstName || ''}`.trim()
+    const bn = `${b.lastName || ''} ${b.firstName || ''}`.trim()
+    if (sortBy.value === 'nameDesc') return bn.localeCompare(an)
+    if (sortBy.value === 'emailAsc') return String(a.email || '').localeCompare(String(b.email || ''))
+    if (sortBy.value === 'roleAsc') return roleRank(a.role) - roleRank(b.role)
+    return an.localeCompare(bn)
+  })
+
+  return sorted
 })
 
 async function loadUsers() {

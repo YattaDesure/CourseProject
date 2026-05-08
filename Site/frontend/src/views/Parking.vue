@@ -27,50 +27,62 @@
         class="input"
         style="max-width: 300px;"
       />
+      <input
+        v-model="ownerSearch"
+        type="text"
+        placeholder="Поиск по владельцу (имя/email)..."
+        class="input"
+        style="max-width: 280px;"
+      />
       <select v-model="statusFilter" class="input" style="max-width: 200px;">
         <option value="">Все статусы</option>
         <option value="Available">Свободно</option>
         <option value="Occupied">Занято</option>
       </select>
+      <button class="btn btn-secondary" type="button" @click="toggleNumberSort" style="padding: 8px 16px;">
+        Номер {{ numberSortDir === 'asc' ? '▲' : '▼' }}
+      </button>
     </div>
 
     <div class="card">
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Номер места</th>
-            <th>Площадь (м²)</th>
-            <th>Статус</th>
-            <th>Владелец</th>
-            <th v-if="authStore.isModerator">Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="space in filteredSpaces" :key="space.id">
-            <td>{{ space.slotNumber }}</td>
-            <td>{{ parseFloat(space.area).toFixed(2) }}</td>
-            <td>
-              <span :class="getStatusBadgeClass(space.status)">{{ getStatusText(space.status) }}</span>
-            </td>
-            <td>
-              <span v-for="(user, idx) in space.users" :key="idx">
-                {{ user.firstName }} {{ user.lastName }}{{ idx < space.users.length - 1 ? ', ' : '' }}
-              </span>
-              <span v-if="space.users.length === 0">-</span>
-            </td>
-            <td v-if="authStore.isModerator">
-              <button @click="editSpace(space)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
-                Редактировать
-              </button>
-            </td>
-          </tr>
-          <tr v-if="filteredSpaces.length === 0">
-            <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-muted);">
-              Места не найдены
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Номер места</th>
+              <th>Площадь (м²)</th>
+              <th>Статус</th>
+              <th>Владелец</th>
+              <th v-if="authStore.isModerator">Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="space in filteredSpaces" :key="space.id">
+              <td>{{ space.slotNumber }}</td>
+              <td>{{ parseFloat(space.area).toFixed(2) }}</td>
+              <td>
+                <span :class="getStatusBadgeClass(space.status)">{{ getStatusText(space.status) }}</span>
+              </td>
+              <td>
+                <span v-for="(user, idx) in space.users" :key="idx">
+                  {{ user.firstName }} {{ user.lastName }}{{ idx < space.users.length - 1 ? ', ' : '' }}
+                </span>
+                <span v-if="space.users.length === 0">-</span>
+              </td>
+              <td v-if="authStore.isModerator">
+                <button @click="editSpace(space)" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">
+                  Редактировать
+                </button>
+              </td>
+            </tr>
+            <tr v-if="filteredSpaces.length === 0">
+              <td colspan="5" style="text-align: center; padding: 32px; color: var(--text-muted);">
+                Места не найдены
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Add/Edit Modal -->
@@ -109,12 +121,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import api from '../services/api'
+import { compareNumberLike, toggleDir } from '../utils/sortNumber'
 
 const authStore = useAuthStore()
 const spaces = ref([])
 const residents = ref([])
 const search = ref('')
+const ownerSearch = ref('')
 const statusFilter = ref('')
+const numberSortDir = ref('asc') // asc | desc
 const showModal = ref(false)
 const editingSpace = ref(null)
 
@@ -134,12 +149,32 @@ const filteredSpaces = computed(() => {
     )
   }
 
+  if (ownerSearch.value) {
+    const q = ownerSearch.value.toLowerCase()
+    result = result.filter(s => {
+      const users = s.users || []
+      return users.some(u =>
+        (u.firstName && u.firstName.toLowerCase().includes(q)) ||
+        (u.lastName && u.lastName.toLowerCase().includes(q)) ||
+        (u.email && u.email.toLowerCase().includes(q))
+      )
+    })
+  }
+
   if (statusFilter.value) {
     result = result.filter(s => s.status === statusFilter.value)
   }
 
-  return result
+  const sorted = [...result]
+  sorted.sort((a, b) => {
+    return compareNumberLike(a.slotNumber, b.slotNumber, numberSortDir.value)
+  })
+  return sorted
 })
+
+function toggleNumberSort() {
+  numberSortDir.value = toggleDir(numberSortDir.value)
+}
 
 async function loadSpaces() {
   try {

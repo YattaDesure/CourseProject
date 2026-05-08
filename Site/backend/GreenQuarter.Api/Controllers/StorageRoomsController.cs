@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Security.Claims;
 using System.Text;
 using GreenQuarter.Infrastructure.Data;
+using GreenQuarter.Api.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -159,9 +160,34 @@ public class StorageRoomsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public Task<IActionResult> CreateStorageRoom([FromBody] dynamic storageRoom)
+    public async Task<IActionResult> CreateStorageRoom([FromBody] CreateStorageRoomRequest storageRoom)
     {
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
+        if (string.IsNullOrWhiteSpace(storageRoom.Label))
+        {
+            return BadRequest(new { message = "Label is required." });
+        }
+
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        // простая проверка на дубли: номер кладовой должен быть уникальным
+        command.CommandText = "SELECT COUNT(*) FROM StorageRooms WHERE Number = @number";
+        command.Parameters.Add(DbMini.P(command, "@number", storageRoom.Label.Trim()));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (exists) return Conflict(new { message = "Storage room with same number already exists." });
+
+        command.Parameters.Clear();
+        command.CommandText = @"
+            INSERT INTO StorageRooms (Number, Area, OwnerId)
+            VALUES (@number, @area, @ownerId);
+            SELECT SCOPE_IDENTITY();";
+
+        command.Parameters.Add(DbMini.P(command, "@number", storageRoom.Label.Trim()));
+        command.Parameters.Add(DbMini.P(command, "@area", storageRoom.Area));
+        command.Parameters.Add(DbMini.P(command, "@ownerId", storageRoom.OwnerId));
+
+        var insertedId = Convert.ToInt32(await command.ExecuteScalarAsync());
+        return Ok(new { Id = insertedId });
     }
 
     [HttpPut("{id}")]
@@ -211,9 +237,28 @@ public class StorageRoomsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public Task<IActionResult> DeleteStorageRoom(int id)
+    public async Task<IActionResult> DeleteStorageRoom(int id)
     {
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        command.CommandText = "SELECT COUNT(*) FROM StorageRooms WHERE StorageRoomId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (!exists) return NotFound();
+
+        command.Parameters.Clear();
+        command.CommandText = "DELETE FROM StorageRooms WHERE StorageRoomId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        await command.ExecuteNonQueryAsync();
+        return NoContent();
+    }
+
+    public sealed class CreateStorageRoomRequest
+    {
+        public string? Label { get; set; }
+        public decimal Area { get; set; }
+        public int? OwnerId { get; set; }
     }
 
     [HttpGet("export/excel")]
