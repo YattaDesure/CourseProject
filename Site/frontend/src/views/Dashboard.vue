@@ -6,6 +6,56 @@
       <p class="welcome-subtitle">Система управления недвижимостью "Зеленый Квартал"</p>
     </div>
 
+    <!-- News -->
+    <div class="news-section">
+      <div class="news-header">
+        <h2>Новости</h2>
+        <button class="btn btn-secondary" @click="loadNews" :disabled="newsLoading" style="padding: 8px 16px;">
+          Обновить
+        </button>
+      </div>
+
+      <div class="news-card card">
+        <div v-if="newsLoading" class="loading-state" style="padding: 16px;">
+          <div class="spinner"></div>
+          <p>Загрузка новостей...</p>
+        </div>
+
+        <div v-else-if="newsError" class="news-error">
+          {{ newsError }}
+        </div>
+
+        <div v-else>
+          <div v-if="news.length === 0" class="news-empty">
+            Пока нет новостей
+          </div>
+
+          <div v-for="post in news" :key="post.id" class="news-item">
+            <div class="news-item-top">
+              <div class="news-title">
+                <span v-if="post.isPinned" class="badge badge-info" style="margin-right: 8px;">Важно</span>
+                {{ post.title || 'Новость' }}
+              </div>
+              <div class="news-date">{{ formatNewsDate(post.createdAt) }}</div>
+            </div>
+
+            <div class="news-body" :class="{ collapsed: !expanded.has(post.id) }">
+              {{ post.body }}
+            </div>
+
+            <button
+              v-if="post.body && post.body.length > 240"
+              class="btn btn-secondary"
+              style="padding: 6px 12px; font-size: 12px; margin-top: 10px;"
+              @click="toggleExpanded(post.id)"
+            >
+              {{ expanded.has(post.id) ? 'Свернуть' : 'Показать полностью' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Statistics Cards -->
     <div class="stats-grid" v-if="!loading">
       <div class="stat-card apartments">
@@ -138,6 +188,11 @@ const stats = ref({
   users: { total: 0, admins: 0, moderators: 0 }
 })
 
+const news = ref([])
+const newsLoading = ref(false)
+const newsError = ref('')
+const expanded = ref(new Set())
+
 const userFullName = computed(() => {
   if (!authStore.user) return 'Пользователь'
   const parts = []
@@ -205,7 +260,53 @@ function getRoleBadgeClass(role) {
 
 onMounted(() => {
   loadStats()
+  loadNews()
 })
+
+function formatNewsDate(value) {
+  try {
+    const d = new Date(value)
+    return d.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return ''
+  }
+}
+
+function toggleExpanded(id) {
+  const set = new Set(expanded.value)
+  if (set.has(id)) set.delete(id)
+  else set.add(id)
+  expanded.value = set
+}
+
+async function loadNews() {
+  try {
+    newsLoading.value = true
+    newsError.value = ''
+    const res = await api.get('/api/news', { params: { limit: 5 } })
+    news.value = (res.data || []).map(p => ({
+      id: p.id,
+      title: p.title,
+      body: p.body,
+      createdAt: p.createdAt,
+      isPinned: p.isPinned
+    }))
+  } catch (e) {
+    news.value = []
+    newsError.value =
+      e?.response?.status === 404
+        ? 'Новости временно недоступны (обновите backend контейнер).'
+        : 'Не удалось загрузить новости'
+  } finally {
+    newsLoading.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -393,6 +494,79 @@ onMounted(() => {
   border-radius: 16px;
   padding: 32px;
   border: 2px solid var(--border);
+}
+
+.news-section {
+  margin-bottom: 32px;
+}
+
+.news-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.news-card {
+  padding: 18px;
+  border: 2px solid rgba(15, 157, 88, 0.25);
+  background: linear-gradient(180deg, rgba(15, 157, 88, 0.08), rgba(255, 255, 255, 1));
+  box-shadow: 0 10px 30px rgba(15, 157, 88, 0.12);
+}
+
+.news-item {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.news-item:last-child {
+  border-bottom: none;
+}
+
+.news-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.news-title {
+  font-weight: 700;
+}
+
+.news-date {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.news-body {
+  margin-top: 8px;
+  white-space: pre-wrap;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.news-body.collapsed {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.news-empty,
+.news-error {
+  color: var(--text-muted);
+  padding: 10px 2px;
+}
+
+@media (max-width: 768px) {
+  .news-date {
+    white-space: normal;
+  }
 }
 
 .user-info-card h2 {

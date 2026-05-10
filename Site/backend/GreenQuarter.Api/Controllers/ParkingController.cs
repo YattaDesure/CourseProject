@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Security.Claims;
 using System.Text;
 using GreenQuarter.Infrastructure.Data;
+using GreenQuarter.Api.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -165,9 +166,34 @@ public class ParkingController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public Task<IActionResult> CreateParkingSpace([FromBody] dynamic space)
+    public async Task<IActionResult> CreateParkingSpace([FromBody] CreateParkingRequest space)
     {
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
+        if (string.IsNullOrWhiteSpace(space.SlotNumber))
+        {
+            return BadRequest(new { message = "SlotNumber is required." });
+        }
+
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        // да, это тупо, но зато понятно: проверим дубль по номеру
+        command.CommandText = "SELECT COUNT(*) FROM ParkingRooms WHERE Number = @number";
+        command.Parameters.Add(DbMini.P(command, "@number", space.SlotNumber.Trim()));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (exists) return Conflict(new { message = "Parking space with same number already exists." });
+
+        command.Parameters.Clear();
+        command.CommandText = @"
+            INSERT INTO ParkingRooms (Number, Area, OwnerId)
+            VALUES (@number, @area, @ownerId);
+            SELECT SCOPE_IDENTITY();";
+
+        command.Parameters.Add(DbMini.P(command, "@number", space.SlotNumber.Trim()));
+        command.Parameters.Add(DbMini.P(command, "@area", space.Area));
+        command.Parameters.Add(DbMini.P(command, "@ownerId", space.OwnerId));
+
+        var insertedId = Convert.ToInt32(await command.ExecuteScalarAsync());
+        return Ok(new { Id = insertedId });
     }
 
     [HttpPut("{id}")]
@@ -217,9 +243,28 @@ public class ParkingController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public Task<IActionResult> DeleteParkingSpace(int id)
+    public async Task<IActionResult> DeleteParkingSpace(int id)
     {
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        command.CommandText = "SELECT COUNT(*) FROM ParkingRooms WHERE ParkingRoomId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (!exists) return NotFound();
+
+        command.Parameters.Clear();
+        command.CommandText = "DELETE FROM ParkingRooms WHERE ParkingRoomId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        await command.ExecuteNonQueryAsync();
+        return NoContent();
+    }
+
+    public sealed class CreateParkingRequest
+    {
+        public string? SlotNumber { get; set; }
+        public decimal Area { get; set; }
+        public int? OwnerId { get; set; }
     }
 
     [HttpGet("export/excel")]

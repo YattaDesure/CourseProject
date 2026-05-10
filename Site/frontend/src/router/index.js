@@ -40,6 +40,12 @@ const routes = [
         meta: { requiresAdmin: true }
       },
       {
+        path: 'electric-readings',
+        name: 'ElectricReadings',
+        component: () => import('../views/ElectricReadings.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
         path: 'account',
         name: 'Account',
         component: () => import('../views/Account.vue')

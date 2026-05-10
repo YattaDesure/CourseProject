@@ -10,6 +10,12 @@
           <router-link to="/apartments" class="nav-link">Квартиры</router-link>
           <router-link to="/parking" class="nav-link">Парковка</router-link>
           <router-link to="/storage" class="nav-link">Кладовые</router-link>
+          <router-link v-if="authStore.isAdmin" to="/electric-readings" class="nav-link nav-link-badge">
+            Показания
+            <span v-if="readingBadgeCount > 0" class="nav-badge" :title="`Не внесены показания: ${readingBadgeCount}`">
+              {{ readingBadgeCount }}
+            </span>
+          </router-link>
           <router-link v-if="authStore.isAdmin" to="/users" class="nav-link">Пользователи</router-link>
           <router-link to="/account" class="nav-link">Мой аккаунт</router-link>
           <button @click="handleLogout" class="btn btn-secondary">Выйти</button>
@@ -49,14 +55,45 @@
 <script setup>
 import { useAuthStore } from '../stores/auth'
 import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import api from '../services/api'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const readingBadgeCount = ref(0)
 
 function handleLogout() {
   authStore.logout()
   router.push('/login')
 }
+
+function monthValue(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  return `${y}-${m}`
+}
+
+async function loadReadingBadge() {
+  try {
+    if (!authStore.isAdmin) {
+      readingBadgeCount.value = 0
+      return
+    }
+    const today = new Date()
+    if (today.getDate() < 15) {
+      readingBadgeCount.value = 0
+      return
+    }
+    const res = await api.get('/api/electric-meters/missing-count', { params: { readingMonth: monthValue(today) } })
+    readingBadgeCount.value = res.data?.missingTotal || 0
+  } catch {
+    readingBadgeCount.value = 0
+  }
+}
+
+onMounted(() => {
+  loadReadingBadge()
+})
 </script>
 
 <style scoped>
@@ -124,6 +161,28 @@ function handleLogout() {
 .nav-link.router-link-active {
   background: rgba(15, 157, 88, 0.1);
   color: var(--primary);
+}
+
+.nav-link-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #d93025;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .main {

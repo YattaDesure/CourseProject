@@ -2,6 +2,7 @@ using System.Data.Common;
 using System.Security.Claims;
 using System.Text;
 using GreenQuarter.Infrastructure.Data;
+using GreenQuarter.Api.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -168,10 +169,41 @@ public class ApartmentsController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Moderator,Admin")]
-    public Task<IActionResult> CreateApartment([FromBody] dynamic apartment)
+    public async Task<IActionResult> CreateApartment([FromBody] CreateApartmentRequest apartment)
     {
-        // Implementation for creating apartment in existing table
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Create functionality requires database schema update" }));
+        // тут без фанатизма: проверяем только самое базовое, чтобы не уронить БД
+        if (string.IsNullOrWhiteSpace(apartment.Number) || string.IsNullOrWhiteSpace(apartment.Entrance))
+        {
+            return BadRequest(new { message = "Number and Entrance are required." });
+        }
+
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        // если номер уже есть — не создаём дубль
+        command.CommandText = "SELECT COUNT(*) FROM Apartments WHERE Number = @number AND Entrance = @entrance";
+        command.Parameters.Add(DbMini.P(command, "@number", apartment.Number.Trim()));
+        command.Parameters.Add(DbMini.P(command, "@entrance", apartment.Entrance.Trim()));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (exists)
+        {
+            return Conflict(new { message = "Apartment with same number/entrance already exists." });
+        }
+
+        command.Parameters.Clear();
+        command.CommandText = @"
+            INSERT INTO Apartments (Number, Floor, Area, Entrance, ResidentId)
+            VALUES (@number, @floor, @area, @entrance, @residentId);
+            SELECT SCOPE_IDENTITY();";
+
+        command.Parameters.Add(DbMini.P(command, "@number", apartment.Number.Trim()));
+        command.Parameters.Add(DbMini.P(command, "@floor", apartment.Floor));
+        command.Parameters.Add(DbMini.P(command, "@area", apartment.Area));
+        command.Parameters.Add(DbMini.P(command, "@entrance", apartment.Entrance.Trim()));
+        command.Parameters.Add(DbMini.P(command, "@residentId", apartment.ResidentId));
+
+        var insertedId = Convert.ToInt32(await command.ExecuteScalarAsync());
+        return Ok(new { Id = insertedId });
     }
 
     [HttpPut("{id}")]
@@ -233,9 +265,31 @@ public class ApartmentsController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin")]
-    public Task<IActionResult> DeleteApartment(int id)
+    public async Task<IActionResult> DeleteApartment(int id)
     {
-        return Task.FromResult<IActionResult>(BadRequest(new { message = "Delete functionality requires database schema update" }));
+        var connection = await DbMini.OpenAsync(_context);
+        using var command = connection.CreateCommand();
+
+        // безопасное удаление: если нет — 404
+        command.CommandText = "SELECT COUNT(*) FROM Apartments WHERE ApartmentId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        var exists = Convert.ToInt32(await command.ExecuteScalarAsync()) > 0;
+        if (!exists) return NotFound();
+
+        command.Parameters.Clear();
+        command.CommandText = "DELETE FROM Apartments WHERE ApartmentId = @id";
+        command.Parameters.Add(DbMini.P(command, "@id", id));
+        await command.ExecuteNonQueryAsync();
+        return NoContent();
+    }
+
+    public sealed class CreateApartmentRequest
+    {
+        public string? Number { get; set; }
+        public int Floor { get; set; }
+        public decimal Area { get; set; }
+        public string? Entrance { get; set; }
+        public int? ResidentId { get; set; }
     }
 
     [HttpGet("export/excel")]

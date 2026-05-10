@@ -1,0 +1,7 @@
+# Repo-root ignore (to avoid случайные файлы)
+.DS_Store
+Thumbs.db
+
+# This folder is not part of the diploma project
+ChronoGuide_Bot/
+

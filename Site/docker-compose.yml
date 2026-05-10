@@ -40,9 +40,7 @@ services:
 
   # Backend API
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: site-backend:latest
     container_name: greenquarter-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
@@ -52,6 +50,9 @@ services:
       - JWT__Issuer=GreenQuarter
       - JWT__Audience=GreenQuarterUsers
       - AllowedOrigins=http://localhost:5173,http://localhost:80,http://localhost
+    volumes:
+      # Run the API from locally published output (no Docker build needed)
+      - ./backend/publish:/app
     ports:
       - "5001:5001"
     depends_on:
@@ -63,8 +64,8 @@ services:
       /bin/sh -c "
       echo '⏳ Ожидание готовности базы данных Cursovaya (60 секунд)...';
       sleep 60;
-      echo '🚀 Запуск backend...';
-      dotnet GreenQuarter.Api.dll
+      echo '🚀 Запуск backend (published)...';
+      dotnet /app/GreenQuarter.Api.dll
       "
     networks:
       - greenquarter-network

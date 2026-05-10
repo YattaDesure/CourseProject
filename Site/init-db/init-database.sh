@@ -124,4 +124,18 @@ else
 fi
 
 echo "🎉 Инициализация завершена"
+
+echo "🛠️ Применение upgrade-скриптов (если есть)..."
+UPGRADE_DIR="/scripts/upgrade"
+if [ -d "$UPGRADE_DIR" ]; then
+    for f in "$UPGRADE_DIR"/*.sql; do
+        if [ -f "$f" ]; then
+            echo "➡️  Выполняю: $f"
+            /opt/mssql-tools18/bin/sqlcmd -S $SQL_SERVER -U SA -P "$SA_PASSWORD" -C -i "$f" || EXIT_CODE=$?
+        fi
+    done
+else
+    echo "ℹ️ Каталог upgrade не найден: $UPGRADE_DIR"
+fi
+
 exit 0
