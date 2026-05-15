@@ -46,6 +46,12 @@ const routes = [
         meta: { requiresAdmin: true }
       },
       {
+        path: 'receipts-admin',
+        name: 'ReceiptsAdmin',
+        component: () => import('../views/ReceiptsAdmin.vue'),
+        meta: { requiresAdmin: true }
+      },
+      {
         path: 'account',
         name: 'Account',
         component: () => import('../views/Account.vue')

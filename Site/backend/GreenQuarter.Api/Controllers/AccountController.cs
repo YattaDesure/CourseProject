@@ -1,6 +1,7 @@
 using System.Data.Common;
 using System.Data;
 using System.Security.Claims;
+using GreenQuarter.Api.Infrastructure;
 using GreenQuarter.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -24,13 +25,13 @@ public class AccountController : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMyAccount()
     {
-        var residentId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
-                        User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(residentId) || !int.TryParse(residentId, out var residentIdInt))
+        var residentIdIntOpt = await ResidentIdFromUser.ResolveAsync(User, _context);
+        if (!residentIdIntOpt.HasValue)
         {
             return Unauthorized();
         }
+
+        var residentIdInt = residentIdIntOpt.Value;
 
         var connection = _context.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
@@ -183,13 +184,13 @@ public class AccountController : ControllerBase
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
-        var residentId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
-                        User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(residentId) || !int.TryParse(residentId, out var residentIdInt))
+        var residentIdIntOpt = await ResidentIdFromUser.ResolveAsync(User, _context);
+        if (!residentIdIntOpt.HasValue)
         {
             return Unauthorized();
         }
+
+        var residentIdInt = residentIdIntOpt.Value;
 
         var connection = _context.Database.GetDbConnection();
         if (connection.State != System.Data.ConnectionState.Open)
@@ -247,13 +248,13 @@ public class AccountController : ControllerBase
     [HttpPut("password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
-        var residentId = User.Claims.FirstOrDefault(c => c.Type == "ResidentId")?.Value ?? 
-                        User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        if (string.IsNullOrEmpty(residentId) || !int.TryParse(residentId, out var residentIdInt))
+        var residentIdIntOpt = await ResidentIdFromUser.ResolveAsync(User, _context);
+        if (!residentIdIntOpt.HasValue)
         {
             return Unauthorized();
         }
+
+        var residentIdInt = residentIdIntOpt.Value;
 
         if (string.IsNullOrEmpty(request.OldPassword) || string.IsNullOrEmpty(request.NewPassword))
         {

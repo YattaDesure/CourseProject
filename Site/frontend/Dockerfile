@@ -9,7 +9,10 @@ RUN npm ci
 # Копируем исходный код
 COPY . .
 
-# Собираем проект
+# Пустой URL = запросы на тот же хост /api (прокси Nginx → backend). Не используйте localhost:5001 в образе.
+ARG VITE_API_URL=
+ENV VITE_API_URL=$VITE_API_URL
+
 RUN npm run build
 
 # Production stage

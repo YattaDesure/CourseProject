@@ -10,6 +10,12 @@
           Информация
         </button>
         <button 
+          @click="activeTab = 'receipts'" 
+          :class="['tab', { active: activeTab === 'receipts' }]"
+        >
+          Квитанции
+        </button>
+        <button 
           @click="activeTab = 'settings'" 
           :class="['tab', { active: activeTab === 'settings' }]"
         >
@@ -48,6 +54,7 @@
 
       <div class="card" v-if="account.apartments && account.apartments.length > 0">
         <h3 style="margin-bottom: 16px;">Мои квартиры</h3>
+        <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
@@ -70,10 +77,12 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card" v-if="account.parkingSpaces && account.parkingSpaces.length > 0">
         <h3 style="margin-bottom: 16px;">Мои парковочные места</h3>
+        <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
@@ -92,10 +101,12 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div class="card" v-if="account.storageRooms && account.storageRooms.length > 0">
         <h3 style="margin-bottom: 16px;">Мои кладовые</h3>
+        <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
@@ -114,12 +125,73 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       <div v-if="!account.apartments?.length && !account.parkingSpaces?.length && !account.storageRooms?.length" class="card">
         <p style="text-align: center; color: var(--text-muted); padding: 32px;">
           У вас пока нет назначенной недвижимости.
         </p>
+      </div>
+    </div>
+
+    <!-- Вкладка "Квитанции" -->
+    <div v-else-if="activeTab === 'receipts'" class="account-content">
+      <div class="card" style="margin-bottom: 24px;">
+        <div class="receipts-header">
+          <h3 style="margin: 0;">Квитанции</h3>
+          <button class="btn btn-secondary btn-small" @click="loadReceipts" :disabled="receiptsLoading">
+            {{ receiptsLoading ? 'Загрузка...' : 'Обновить' }}
+          </button>
+        </div>
+
+        <div v-if="receiptsError" class="error-message" style="margin-top: 12px;">{{ receiptsError }}</div>
+
+        <div v-if="!receiptsLoading && receipts.length === 0" style="text-align:center; color: var(--text-muted); padding: 24px;">
+          Пока нет квитанций. Начисления появятся после формирования администратором.
+        </div>
+
+        <div v-else-if="receipts.length > 0" class="table-wrap" style="margin-top: 12px;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Месяц</th>
+                <th>Сумма</th>
+                <th>Статус</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in receipts" :key="r.receiptId">
+                <td>{{ formatReceiptMonth(r.billingMonth) }}</td>
+                <td>{{ formatReceiptMoney(r.totalAmount) }}</td>
+                <td>
+                  <span class="receipt-status" :class="r.paymentStatus === 'Paid' ? 'paid' : 'unpaid'">
+                    {{ receiptPaymentStatusLabel(r.paymentStatus) }}
+                  </span>
+                </td>
+                <td style="text-align:right;">
+                  <button class="btn btn-primary btn-small" @click="openReceipt(r.receiptId)" :disabled="receiptDetailLoading">
+                    Открыть
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div v-if="receiptDetail" class="card receipt-slip-card">
+        <div class="receipt-detail-head no-print">
+          <div style="color: var(--text-muted); font-size: 13px;">
+            Сформирована: {{ new Date(receiptDetail.createdAt).toLocaleString('ru-RU') }}
+          </div>
+          <div style="display:flex; gap: 8px; align-items:center;">
+            <button class="btn btn-secondary btn-small" @click="printReceipt">Печать</button>
+            <button class="btn btn-secondary btn-small" @click="receiptDetail = null">Закрыть</button>
+          </div>
+        </div>
+        <ReceiptPaymentSlip :receipt="receiptDetail" @paid="onReceiptPaid" />
       </div>
     </div>
 
@@ -190,14 +262,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
+import ReceiptPaymentSlip from '../components/ReceiptPaymentSlip.vue'
+import { mapReceiptListItem, mapReceiptDetail } from '../utils/receiptApi'
+import {
+  formatReceiptMonth,
+  formatReceiptMoney,
+  receiptPaymentStatusLabel
+} from '../utils/receiptFormat'
 
 const authStore = useAuthStore()
 const account = ref(null)
 const loading = ref(true)
 const activeTab = ref('info')
+
+const receiptsLoading = ref(false)
+const receiptsError = ref('')
+const receipts = ref([])
+const receiptDetailLoading = ref(false)
+const receiptDetail = ref(null)
 
 const profileLoading = ref(false)
 const passwordLoading = ref(false)
@@ -244,6 +329,45 @@ async function loadAccount() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadReceipts() {
+  receiptsError.value = ''
+  receiptsLoading.value = true
+  try {
+    const res = await api.get('/api/receipts/my', { params: { limit: 12 } })
+    receipts.value = (res.data || []).map(mapReceiptListItem)
+  } catch (e) {
+    receiptsError.value = e.response?.data?.message || 'Не удалось загрузить квитанции'
+    receipts.value = []
+  } finally {
+    receiptsLoading.value = false
+  }
+}
+
+async function openReceipt(id) {
+  if (!id) return
+  receiptDetailLoading.value = true
+  try {
+    const res = await api.get(`/api/receipts/my/${id}`)
+    const d = res.data || {}
+    receiptDetail.value = mapReceiptDetail(d)
+  } catch (e) {
+    receiptsError.value = e.response?.data?.message || 'Не удалось открыть квитанцию'
+  } finally {
+    receiptDetailLoading.value = false
+  }
+}
+
+async function onReceiptPaid() {
+  const id = receiptDetail.value?.receiptId
+  if (!id) return
+  await openReceipt(id)
+  await loadReceipts()
+}
+
+function printReceipt() {
+  window.print()
 }
 
 async function updateProfile() {
@@ -347,6 +471,11 @@ function getRoleBadgeClass(role) {
 
 onMounted(() => {
   loadAccount()
+  loadReceipts()
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'receipts') loadReceipts()
 })
 </script>
 
@@ -387,15 +516,28 @@ onMounted(() => {
   font-size: 16px;
 }
 
+.account-page-header {
+  flex-direction: column;
+  align-items: stretch;
+}
+
 .tabs {
   display: flex;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 4px;
+  margin-top: 12px;
   border-bottom: 2px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  padding: 12px 24px;
+  padding: 10px 16px;
+  flex-shrink: 0;
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
@@ -448,25 +590,81 @@ onMounted(() => {
   margin-top: -4px;
 }
 
-.error-message {
-  padding: 12px;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 8px;
-  color: #c33;
+.receipts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.success-message {
-  padding: 12px;
-  background: #efe;
-  border: 1px solid #cfc;
-  border-radius: 8px;
-  color: #3c3;
+.receipt-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.receipt-slip-card {
+  padding: 20px;
+}
+
+.receipt-status {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.receipt-status.paid {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.receipt-status.unpaid {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+@media print {
+  .page-header,
+  .tabs,
+  .receipts-header,
+  .table-wrap,
+  .no-print {
+    display: none !important;
+  }
+
+  .receipt-slip-card {
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
 }
 
 @media (max-width: 768px) {
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .receipt-detail-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .receipts-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .receipt-slip-card {
+    padding: 12px;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
   }
 }
 </style>

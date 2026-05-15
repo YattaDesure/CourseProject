@@ -38,9 +38,10 @@ services:
     command: /bin/bash /scripts/init-database.sh
     restart: "no"
 
-  # Backend API
+  # Backend: только runtime aspnet (без sdk в Docker — иначе часто падает pull mcr.microsoft.com/dotnet/sdk).
+  # Перед первым запуском один раз: ./publish-backend.sh  (или: dotnet publish … -o backend/publish)
   backend:
-    image: site-backend:latest
+    image: mcr.microsoft.com/dotnet/aspnet:9.0
     container_name: greenquarter-api
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
@@ -49,9 +50,8 @@ services:
       - JWT__Key=YourSuperSecretKeyThatIsAtLeast32CharactersLong!
       - JWT__Issuer=GreenQuarter
       - JWT__Audience=GreenQuarterUsers
-      - AllowedOrigins=http://localhost:5173,http://localhost:80,http://localhost
+      - AllowedOrigins=http://localhost:5173,http://localhost:80,http://localhost,http://127.0.0.1:80,http://127.0.0.1
     volumes:
-      # Run the API from locally published output (no Docker build needed)
       - ./backend/publish:/app
     ports:
       - "5001:5001"
@@ -62,29 +62,26 @@ services:
         condition: service_completed_successfully
     entrypoint: >
       /bin/sh -c "
-      echo '⏳ Ожидание готовности базы данных Cursovaya (60 секунд)...';
-      sleep 60;
-      echo '🚀 Запуск backend (published)...';
-      dotnet /app/GreenQuarter.Api.dll
+      if [ ! -f /app/GreenQuarter.Api.dll ]; then
+        echo 'Ошибка: нет /app/GreenQuarter.Api.dll. На Mac выполни из папки проекта: ./publish-backend.sh';
+        exit 1;
+      fi;
+      echo '⏳ Пауза перед стартом API...';
+      sleep 8;
+      exec dotnet /app/GreenQuarter.Api.dll
       "
     networks:
       - greenquarter-network
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5001/swagger/index.html"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
 
-  # Frontend
+  # Frontend (API только через Nginx /api → backend; отдельно трогать БД не нужно)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
     container_name: greenquarter-frontend
-    environment:
-      - VITE_API_URL=http://localhost:5001
     ports:
       - "80:80"
     depends_on:

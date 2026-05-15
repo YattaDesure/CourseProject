@@ -54,7 +54,7 @@ public class AuthController : ControllerBase
                 var result = await _signInManager.CheckPasswordSignInAsync(user, request.Password, false);
                 if (result.Succeeded)
                 {
-                    var token = GenerateJwtToken(user);
+                    var token = await GenerateJwtTokenAsync(user);
                     var fullName = $"{user.FirstName} {user.LastName}".Trim();
 
                     return Ok(new LoginResponse
@@ -214,7 +214,7 @@ public class AuthController : ControllerBase
             return BadRequest(new { errors = result.Errors });
         }
 
-        var token = GenerateJwtToken(user);
+        var token = await GenerateJwtTokenAsync(user);
         var fullName = $"{user.FirstName} {user.LastName}".Trim();
 
         return Ok(new LoginResponse
@@ -228,19 +228,45 @@ public class AuthController : ControllerBase
         });
     }
 
-    private string GenerateJwtToken(User user)
+    private async Task<int?> FindResidentIdByEmailAsync(string? email)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        var connection = _context.Database.GetDbConnection();
+        if (connection.State != System.Data.ConnectionState.Open)
+        {
+            await connection.OpenAsync();
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT TOP 1 ResidentId FROM Residents WHERE Email = @e";
+        var p = command.CreateParameter();
+        p.ParameterName = "@e";
+        p.Value = email.Trim();
+        command.Parameters.Add(p);
+        var o = await command.ExecuteScalarAsync();
+        if (o is null || o == DBNull.Value) return null;
+        return Convert.ToInt32(o);
+    }
+
+    private async Task<string> GenerateJwtTokenAsync(User user)
     {
         var jwtKey = _configuration["JWT:Key"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
         var jwtIssuer = _configuration["JWT:Issuer"] ?? "GreenQuarter";
         var jwtAudience = _configuration["JWT:Audience"] ?? "GreenQuarterUsers";
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id),
             new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
             new Claim(ClaimTypes.Name, $"{user.FirstName} {user.LastName}".Trim()),
             new Claim("Role", user.Role)
         };
+
+        var residentId = await FindResidentIdByEmailAsync(user.Email);
+        if (residentId.HasValue)
+        {
+            claims.Add(new Claim("ResidentId", residentId.Value.ToString()));
+        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

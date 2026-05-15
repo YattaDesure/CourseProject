@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>Квартиры</h2>
-      <div style="display: flex; gap: 8px;">
+      <div class="page-actions">
         <label v-if="authStore.isModerator" class="btn btn-secondary" style="padding: 8px 16px; cursor: pointer; margin: 0;">
           📥 Импорт
           <input type="file" @change="importFromExcel" accept=".xlsx,.xls" style="display: none;" />
@@ -24,21 +24,19 @@
         v-model="search"
         type="text"
         placeholder="Поиск по номеру или подъезду..."
-        class="input"
-        style="max-width: 300px;"
+        class="input filter-field"
       />
       <input
         v-model="ownerSearch"
         type="text"
         placeholder="Поиск по владельцу (имя/email)..."
-        class="input"
-        style="max-width: 280px;"
+        class="input filter-field"
       />
-      <select v-model="entranceFilter" class="input" style="max-width: 200px;">
+      <select v-model="entranceFilter" class="input filter-field">
         <option value="">Все подъезды</option>
         <option v-for="e in entranceOptions" :key="e" :value="e">{{ e }}</option>
       </select>
-      <select v-model="statusFilter" class="input" style="max-width: 200px;">
+      <select v-model="statusFilter" class="input filter-field">
         <option value="">Все статусы</option>
         <option value="Available">Свободна</option>
         <option value="Occupied">Занята</option>

@@ -135,6 +135,9 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// Лёгкая проверка без Swagger/БД (ручная диагностика: curl http://localhost:5001/health).
+app.MapGet("/health", () => Results.Text("ok", "text/plain"));
+
 // Ensure database is created (only if needed, skip if tables already exist)
 using (var scope = app.Services.CreateScope())
 {

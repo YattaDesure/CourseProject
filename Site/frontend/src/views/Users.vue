@@ -2,7 +2,7 @@
   <div class="page">
     <div class="page-header">
       <h2>Пользователи</h2>
-      <div style="display: flex; gap: 8px;">
+      <div class="page-actions">
         <button @click="exportToExcel" class="btn btn-secondary" style="padding: 8px 16px;">
           📊 Excel
         </button>
@@ -20,21 +20,20 @@
         v-model="search"
         type="text"
         placeholder="Поиск по имени или email..."
-        class="input"
-        style="max-width: 300px;"
+        class="input filter-field"
       />
-      <select v-model="roleFilter" class="input" style="max-width: 200px;">
+      <select v-model="roleFilter" class="input filter-field">
         <option value="">Все роли</option>
         <option value="User">Пользователь</option>
         <option value="Moderator">Модератор</option>
         <option value="Admin">Администратор</option>
       </select>
-      <select v-model="statusFilter" class="input" style="max-width: 200px;">
+      <select v-model="statusFilter" class="input filter-field">
         <option value="">Все статусы</option>
         <option value="active">Активен</option>
         <option value="inactive">Неактивен</option>
       </select>
-      <select v-model="sortBy" class="input" style="max-width: 220px;">
+      <select v-model="sortBy" class="input filter-field">
         <option value="nameAsc">Сортировка: имя ↑</option>
         <option value="nameDesc">Сортировка: имя ↓</option>
         <option value="emailAsc">Сортировка: email ↑</option>
